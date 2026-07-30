@@ -68,6 +68,25 @@
    win over the hidden attribute. */
 [hidden] { display: none !important; }
 
+/* ---------------------------------------------------------- icons
+   One monoline set, stroke-only, inheriting currentColor so a single
+   `color` declaration restyles any icon anywhere.                    */
+.sprite { display: none; }
+
+svg[class] , .tick svg, .bigcheck svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+  overflow: visible;
+}
+.markIcon { width: 23px; height: 23px; }
+.brand.lg .markIcon { width: 26px; height: 26px; }
+.tick svg { width: 13px; height: 13px; stroke-width: 2.6; }
+.bigcheck svg { width: 36px; height: 36px; stroke-width: 2.4; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -108,13 +127,12 @@ p { margin: 0; }
   flex: none;
   width: 42px; height: 42px;
   display: grid; place-items: center;
-  font-size: 22px;
   color: #cfe4ff;
   background: rgba(255,255,255,.1);
   border: 1px solid rgba(255,255,255,.18);
   border-radius: 12px;
 }
-.brand.lg .mark { width: 48px; height: 48px; font-size: 25px; }
+.brand.lg .mark { width: 48px; height: 48px; }
 
 .callbtn {
   flex: none;
@@ -190,7 +208,8 @@ h3 {
 .card:focus-visible { outline: none; box-shadow: var(--ring); }
 .card.sel { border-color: var(--accent); background: var(--accent-wash); box-shadow: var(--sh-2); }
 
-.card .ico { font-size: 21px; line-height: 1.2; }
+.card .ico { width: 27px; height: 27px; margin-top: 1px; color: var(--accent); }
+.card.sel .ico { color: var(--accent); }
 .card .t { display: block; font-weight: 650; }
 .card .d { display: block; font-size: 13.5px; color: var(--muted); margin-top: 3px; }
 .card .p {
@@ -211,7 +230,6 @@ h3 {
   border-radius: 50%;
   background: var(--surface);
   color: transparent;
-  font-size: 13px; font-weight: 700;
   transition: background .16s, border-color .16s, color .16s;
 }
 .card[data-multi="1"] .tick { border-radius: 7px; }
@@ -324,7 +342,6 @@ input[type="date"] { max-width: 240px; }
   display: grid; place-items: center;
   border-radius: 50%;
   background: var(--ok); color: #fff;
-  font-size: 36px; font-weight: 700;
   box-shadow: 0 8px 24px rgba(15,157,106,.35);
   animation: pop .4s cubic-bezier(.2,1.4,.4,1) both;
 }
@@ -498,7 +515,8 @@ input[type="date"] { max-width: 240px; }
   }
   /* the sidebar already shows the estimate — don't say it twice */
   .runningTotal { display: none; }
-  .navbar .btn.ghost { order: -1; }
+  .navbar { justify-content: flex-end; }
+  .navbar .btn.ghost { order: -1; margin-right: auto; }
 
   .done { padding-top: 60px; }
 }

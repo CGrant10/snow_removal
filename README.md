@@ -44,6 +44,13 @@ Light theme by default because it reads as more trustworthy on a booking
 form; dark follows the visitor's system setting. Both are styled deliberately,
 and `prefers-reduced-motion` is honored.
 
+**Icons are a custom inline SVG sprite** at the top of `index.html` — no emoji,
+no icon library, nothing that shows up in every other app. They are monoline,
+24×24, stroke-only, and inherit `currentColor`, so one CSS `color` restyles
+any of them. To add one: drop a new `<symbol id="i-yourname">` in the sprite
+and reference it from `config.js` as `icon: "yourname"`. The favicon is the
+same crystal mark inlined as a data URI.
+
 ## Configuring the business
 
 Everything your buddy will want to tweak is in [config.js](config.js):

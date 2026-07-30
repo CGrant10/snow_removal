@@ -52,15 +52,16 @@ window.SNOW_CONFIG = {
   },
 
   /* ---------- Services offered ----------
-     `base` and `perUnit` drive the ballpark estimate only. The customer is
-     always told it is an estimate, not a quote.                          */
+     `base` drives the ballpark estimate only — the customer is always told
+     it is an estimate, not a quote.
+     `icon` names a symbol in the sprite at the top of index.html.        */
   services: [
     {
       id: "driveway",
       label: "Driveway clearing",
       blurb: "Plow or blow the drive down to pavement, plus the street apron.",
       base: 45,
-      icon: "🚗",
+      icon: "plow",
       needsSize: true,
     },
     {
@@ -68,21 +69,21 @@ window.SNOW_CONFIG = {
       label: "Sidewalks & steps",
       blurb: "Public walk, front path, steps, and a path to the mailbox.",
       base: 25,
-      icon: "🚶",
+      icon: "steps",
     },
     {
       id: "salt",
       label: "Ice melt / sanding",
       blurb: "Pet-safe ice melt on walks and steps after clearing.",
       base: 20,
-      icon: "🧂",
+      icon: "salt",
     },
     {
       id: "roof",
       label: "Roof & ice dams",
       blurb: "Roof rake the first 6–8 feet of eave. Quoted on site.",
       base: 150,
-      icon: "🏠",
+      icon: "roof",
       quoteOnly: true,
     },
     {
@@ -90,7 +91,7 @@ window.SNOW_CONFIG = {
       label: "Commercial lot",
       blurb: "Small business lots and alley approaches. Quoted on site.",
       base: 0,
-      icon: "🏢",
+      icon: "lot",
       quoteOnly: true,
     },
   ],

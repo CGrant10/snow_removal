@@ -67,10 +67,10 @@ function card({ ico, t, d, p, sel, multi, onClick }) {
   b.setAttribute("aria-pressed", String(!!sel));
   if (multi) b.dataset.multi = "1";
   b.innerHTML =
-    (ico ? `<span class="ico">${ico}</span>` : "") +
+    (ico ? `<svg class="ico" aria-hidden="true"><use href="#i-${ico}"></use></svg>` : "") +
     `<span><span class="t">${t}</span>${d ? `<span class="d">${d}</span>` : ""}</span>` +
     (p ? `<span class="p">${p}</span>` : "") +
-    `<span class="tick" aria-hidden="true">✓</span>`;
+    `<span class="tick" aria-hidden="true"><svg><use href="#i-check"></use></svg></span>`;
   b.addEventListener("click", onClick);
   return b;
 }
