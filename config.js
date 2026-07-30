@@ -8,7 +8,7 @@ window.SNOW_CONFIG = {
     name: "Northern Edge Snow Removal",
     phone: "(701) 555-0134",
     email: "dispatch@example.com",
-    serviceArea: "Bismarck / Mandan and 15 miles out",
+    serviceArea: "Fargo / West Fargo and 15 miles out",
     tagline: "Plowed before your coffee is done.",
     hours: "Storm response 24/7 · Office 8–5 weekdays",
 
