@@ -27,8 +27,22 @@ Or with the backend (also serves the form):
 python snow_removal/server.py
 ```
 
-Open http://localhost:8123 — it's mobile-first, so shrink the window or open
-it on your phone.
+Open http://localhost:8123.
+
+## Layout
+
+One codebase, two layouts, switching at 900px:
+
+- **Mobile** — full-width steps, a sticky header with a tap-to-call button, a
+  progress hairline, and a fixed bottom bar carrying Back / running estimate /
+  Continue.
+- **Desktop** — a navy sidebar with the brand, a numbered stepper that checks
+  off as you go, the running estimate, trust points, and the phone number;
+  the form sits beside it as a floating card with inline nav buttons.
+
+Light theme by default because it reads as more trustworthy on a booking
+form; dark follows the visitor's system setting. Both are styled deliberately,
+and `prefers-reduced-motion` is honored.
 
 ## Configuring the business
 

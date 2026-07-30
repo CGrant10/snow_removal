@@ -10,6 +10,14 @@ window.SNOW_CONFIG = {
     email: "dispatch@example.com",
     serviceArea: "Bismarck / Mandan and 15 miles out",
     tagline: "Plowed before your coffee is done.",
+    hours: "Storm response 24/7 · Office 8–5 weekdays",
+
+    /* Shown in the sidebar. Keep to three or four short items. */
+    trust: [
+      "Licensed & insured",
+      "Locally owned and operated",
+      "No long-term contract required",
+    ],
   },
 
   /* ---------- How reservation requests reach you ----------

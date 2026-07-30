@@ -6,6 +6,7 @@ const CFG = window.SNOW_CONFIG;
 const $ = (id) => document.getElementById(id);
 
 const STEPS = 5;              // 0..4 are input steps, 5 is the done screen
+const STEP_NAMES = ["Services", "Property", "Schedule", "Contact", "Review"];
 let step = 0;
 
 const state = {
@@ -21,13 +22,24 @@ const state = {
 
 /* ------------------------------------------------------------ boot */
 function boot() {
-  $("bizName").textContent = CFG.business.name;
-  $("bizTagline").textContent = CFG.business.tagline;
-  $("bizPhone").href = "tel:" + CFG.business.phone.replace(/[^\d+]/g, "");
-  $("bizPhone").textContent = CFG.business.phone;
-  document.title = "Reserve — " + CFG.business.name;
+  const b = CFG.business;
+  const tel = "tel:" + b.phone.replace(/[^\d+]/g, "");
+
+  $("bizName").textContent = $("bizNameSm").textContent = b.name;
+  $("bizArea").textContent = $("bizAreaSm").textContent = b.serviceArea;
+  $("bizTagline").textContent = b.tagline;
+  $("bizHours").textContent = b.hours || "";
+  $("bizPhone").href = $("bizPhoneSm").href = tel;
+  $("bizPhone").textContent = b.phone;
+  document.title = "Reserve — " + b.name;
+
+  $("trustList").innerHTML = (b.trust || [])
+    .map((t) => `<li>${t}</li>`).join("");
 
   $("progress").innerHTML = Array.from({ length: STEPS }, () => "<i></i>").join("");
+  $("stepper").innerHTML = STEP_NAMES
+    .map((n, i) => `<li><span class="n">${i + 1}</span><span>${n}</span></li>`)
+    .join("");
 
   renderServices();
   renderSizes();
@@ -47,14 +59,18 @@ function boot() {
 }
 
 /* ------------------------------------------------------------ render */
-function card({ ico, t, d, p, sel, onClick }) {
+/* `multi` squares off the tick mark, the way a checkbox reads next to a radio. */
+function card({ ico, t, d, p, sel, multi, onClick }) {
   const b = document.createElement("button");
   b.type = "button";
   b.className = "card" + (sel ? " sel" : "");
+  b.setAttribute("aria-pressed", String(!!sel));
+  if (multi) b.dataset.multi = "1";
   b.innerHTML =
     (ico ? `<span class="ico">${ico}</span>` : "") +
     `<span><span class="t">${t}</span>${d ? `<span class="d">${d}</span>` : ""}</span>` +
-    (p ? `<span class="p">${p}</span>` : "");
+    (p ? `<span class="p">${p}</span>` : "") +
+    `<span class="tick" aria-hidden="true">✓</span>`;
   b.addEventListener("click", onClick);
   return b;
 }
@@ -67,8 +83,9 @@ function renderServices() {
       ico: s.icon,
       t: s.label,
       d: s.blurb,
-      p: s.quoteOnly ? "quoted" : "from $" + s.base,
+      p: s.quoteOnly ? "quoted on site" : "from $" + s.base,
       sel: state.services.has(s.id),
+      multi: true,
       onClick: () => {
         state.services.has(s.id) ? state.services.delete(s.id) : state.services.add(s.id);
         renderServices();
@@ -184,10 +201,29 @@ function money(n) { return "$" + n.toLocaleString("en-US"); }
 
 function updateTotal() {
   const e = estimate();
-  const host = $("runningTotal");
-  if (!state.services.size) { host.textContent = ""; return; }
-  if (!e.amount && e.quoteOnly) { host.textContent = "Quoted on site"; return; }
-  host.textContent = "~" + money(e.amount) + (e.kind === "monthly" ? " / month" : " / visit");
+  const bar = $("runningTotal");
+  const rail = $("railEstimate");
+
+  if (!state.services.size) {
+    bar.textContent = "";
+    rail.hidden = true;
+    return;
+  }
+
+  const per = e.kind === "monthly" ? " / month" : " / visit";
+
+  if (!e.amount && e.quoteOnly) {
+    bar.textContent = "Quoted on site";
+    rail.hidden = false;
+    $("railAmt").textContent = "On site";
+    $("railPer").textContent = "quote";
+    return;
+  }
+
+  bar.textContent = "Estimate ~" + money(e.amount) + per;
+  rail.hidden = false;
+  $("railAmt").textContent = money(e.amount);
+  $("railPer").textContent = per.trim();
 }
 
 /* ------------------------------------------------------------ nav */
@@ -197,11 +233,19 @@ function show(n) {
     el.hidden = Number(el.dataset.step) !== n;
   });
   [...$("progress").children].forEach((i, idx) => i.classList.toggle("on", idx <= n && n < STEPS));
+
+  [...$("stepper").children].forEach((li, idx) => {
+    li.classList.toggle("done", idx < n);
+    li.classList.toggle("now", idx === n && n < STEPS);
+    li.querySelector(".n").textContent = idx < n ? "✓" : String(idx + 1);
+  });
+
   $("backBtn").hidden = n === 0 || n >= STEPS;
   $("nextBtn").hidden = n >= STEPS;
   $("nextBtn").textContent = n === STEPS - 1 ? "Send request" : "Continue";
   $("progress").hidden = n >= STEPS;
-  window.scrollTo(0, 0);
+  document.querySelector(".navbar").hidden = n >= STEPS;   // nothing left to do
+  window.scrollTo({ top: 0, behavior: "instant" });
   if (n === STEPS - 1) renderSummary();
 }
 
@@ -256,11 +300,12 @@ function renderSummary() {
 
   const e = estimate();
   $("estimate").innerHTML = e.amount
-    ? `<div class="muted">Ballpark estimate</div>
-       <div class="big">${money(e.amount)}<span class="muted" style="font-size:15px">
-       ${e.kind === "monthly" ? " / month" : " / visit"}</span></div>
-       ${e.quoteOnly ? '<div class="muted">Plus roof or lot work, quoted on site.</div>' : ""}`
-    : `<div class="muted">We'll quote this one on site.</div>`;
+    ? `<span class="lbl">Ballpark estimate</span>
+       <span class="big">${money(e.amount)}<span class="per">
+         ${e.kind === "monthly" ? "/ month" : "/ visit"}</span></span>
+       ${e.quoteOnly ? '<span class="note">Plus roof or lot work, quoted on site.</span>' : ""}`
+    : `<span class="lbl">Ballpark estimate</span>
+       <span class="note">We'll walk this one and quote it on site — no charge for the visit.</span>`;
 }
 
 function esc(s) {
