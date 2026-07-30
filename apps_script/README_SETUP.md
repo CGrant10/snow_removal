@@ -95,11 +95,39 @@ Apps Script keeps serving the *deployed* version, not what's in the editor.
 After editing you must **Deploy → Manage deployments → pencil icon → Version:
 New version → Deploy**. Same URL, new code. This trips up everyone once.
 
+## Turning on the job board (admin.html)
+
+The repo ships a staff page — filterable job board, tap-to-call, status
+changes — at `admin.html`. To switch it on, set a passphrase in `Code.gs`:
+
+```js
+ADMIN_PASSPHRASE: 'something-long-you-do-not-reuse',
+```
+
+Deploy a new version (see the section above — editing alone does nothing),
+then open `admin.html` and sign in with it. Leave the setting empty and the
+admin endpoints refuse every request, which is the right default.
+
+**Know what this is.** Anyone with the `/exec` URL and that passphrase can
+read every customer's name, address, and phone number. Wrong guesses get a
+short delay, but there's no real rate limiting and no audit trail. For one
+truck that's a fair trade — just make the passphrase long and don't reuse it.
+
+**The stronger version, still free:** create a *second* Apps Script project
+bound to the same Sheet with only the admin actions, and deploy that one with
+**Access: Only myself** (or your organization). Google's login becomes the
+gate, the public form keeps its own anonymous deployment, and no passphrase
+exists to leak. Point `admin.js` at that second URL.
+
 ## Adding an admin
 
-Share the Sheet like any other Google file (**Share** button, top right).
-Editor access lets them change Status and add notes. Google handles who
-they are — no accounts to build, no passwords to store.
+Two ways, depending on whether they need the job board:
+
+- **Just the data:** share the Sheet like any other Google file (**Share**,
+  top right). Editor access lets them change Status and add notes. Google
+  handles who they are — no accounts to build, no passwords to store.
+- **The job board:** give them the passphrase. Everyone shares one, so
+  changing it signs everybody out.
 
 ## Blocking bots
 

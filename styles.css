@@ -112,7 +112,8 @@ p { margin: 0; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  /* installed on iOS the page runs under the status bar, so pad for it */
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   background: linear-gradient(135deg, var(--rail-from), var(--rail-to));
   color: var(--rail-ink);
 }
@@ -146,6 +147,40 @@ p { margin: 0; }
   font-size: 14px;
 }
 .callbtn:hover { background: rgba(255,255,255,.2); }
+
+.topActions { display: flex; align-items: center; gap: 8px; flex: none; }
+#installBtnSm { font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+/* ---------------------------------------------------------- PWA bits */
+.iosHint {
+  position: fixed; z-index: 40;
+  left: 12px; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom));
+  max-width: 420px; margin: 0 auto;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r);
+  box-shadow: var(--sh-3);
+  animation: rise .25s ease both;
+}
+.iosHint p { font-size: 14.5px; color: var(--ink-2); }
+.iosHint p + p { margin-top: 4px; }
+.iosHint strong { color: var(--ink); }
+.btn.sm { margin-top: 12px; padding: 8px 16px; font-size: 14px; }
+
+.updatePill {
+  position: fixed; z-index: 40;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  padding: 11px 20px;
+  border: none; border-radius: 999px;
+  background: var(--rail-from); color: #fff;
+  font: inherit; font-size: 14px; font-weight: 600;
+  box-shadow: var(--sh-3);
+  cursor: pointer;
+  animation: rise .25s ease both;
+}
+.updatePill:hover { background: var(--rail-to); }
 
 /* progress hairline under the mobile bar */
 .progress { display: flex; gap: 3px; background: var(--line); }
@@ -483,7 +518,25 @@ input[type="date"] { max-width: 240px; }
   }
   .trust li::before { content: "✓"; color: #7cc5a0; font-weight: 700; }
 
+  .railInstall {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--rail-line);
+    border-radius: var(--r-sm);
+    background: rgba(255,255,255,.09);
+    color: #fff;
+    font: inherit; font-size: 14.5px; font-weight: 600;
+    cursor: pointer;
+    transition: background .16s;
+  }
+  .railInstall:hover { background: rgba(255,255,255,.16); }
+  .railInstall .dl { width: 18px; height: 18px; }
+
   .railContact { border-top: 1px solid var(--rail-line); padding-top: 18px; }
+  .railContact .ver { margin-top: 8px; opacity: .6; font-size: 12px; }
+
+  .updatePill, .iosHint { bottom: 24px; }
   .railContact a {
     display: block; font-size: 19px; font-weight: 700;
     color: #fff; text-decoration: none; letter-spacing: -.01em;
@@ -529,6 +582,155 @@ input[type="date"] { max-width: 240px; }
      any narrower and the summary column squeezes its values illegibly. */
   .reviewGrid { grid-template-columns: minmax(0, 1fr) 250px; align-items: start; gap: 24px; }
   .estimate { position: sticky; top: 56px; }
+}
+
+/* ============================================================
+   ADMIN — admin.html only. Same tokens, different surface: a dense
+   job board meant to be worked from a phone at 5 AM.
+   ============================================================ */
+
+.adminBody { padding-bottom: 40px; }
+
+/* ---------------------------------------------------------- gate */
+.gate {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: 24px;
+  background: linear-gradient(160deg, var(--rail-from), var(--rail-to));
+}
+.gateCard {
+  width: 100%; max-width: 380px;
+  padding: 32px 28px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-3);
+  text-align: center;
+}
+.gateCard .mark {
+  margin: 0 auto 16px;
+  background: var(--accent-wash);
+  border-color: var(--accent-wash);
+  color: var(--accent);
+}
+.gateCard h1 { font-size: 23px; }
+.gateCard .muted { font-size: 14px; margin-top: 6px; }
+.gateCard .field { text-align: left; margin-top: 22px; }
+.gateCard .check { border: none; padding: 0; font-size: 14px; }
+.btn.wide { width: 100%; margin-top: 18px; }
+
+/* ---------------------------------------------------------- bar */
+.adminBar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  background: linear-gradient(135deg, var(--rail-from), var(--rail-to));
+  color: var(--rail-ink);
+}
+.adminBar h1 { font-size: 17px; }
+.adminBar .muted { color: var(--rail-mute); }
+
+.iconBtn {
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 10px;
+  background: rgba(255,255,255,.13);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #fff; cursor: pointer;
+}
+.iconBtn:hover { background: rgba(255,255,255,.22); }
+.iconBtn .rf { width: 19px; height: 19px; }
+.iconBtn.spin .rf { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------------------------------------------------------- tools */
+.adminTools {
+  position: sticky; top: 0; z-index: 5;
+  display: grid; gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.adminTools .chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+.adminTools .chip { white-space: nowrap; font-size: 13.5px; padding: 7px 13px; }
+.adminTools input { padding: 10px 13px; }
+
+/* ---------------------------------------------------------- jobs */
+.jobs {
+  display: grid; gap: 12px;
+  padding: 16px;
+  max-width: 1200px; margin: 0 auto;
+}
+@media (min-width: 760px)  { .jobs { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1180px) { .jobs { grid-template-columns: repeat(3, 1fr); } }
+
+.job {
+  display: flex; flex-direction: column;
+  padding: 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh-1);
+}
+.job.closed { opacity: .62; }
+.job.saving { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.jobTop { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.job h2 { font-size: 17px; }
+.addr { margin-top: 8px; font-size: 15px; color: var(--ink-2); }
+
+.pill {
+  flex: none;
+  padding: 4px 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 700;
+  background: var(--surface-2); color: var(--muted);
+  border: 1px solid var(--line);
+}
+.pill.st-new       { background: var(--accent-wash); color: var(--accent); border-color: var(--accent); }
+.pill.st-scheduled { background: #e7f7f0; color: #0b7a52; border-color: #9fdcc3; }
+.pill.st-done      { background: var(--surface-2); color: var(--muted); }
+.pill.st-declined  { background: var(--err-wash); color: var(--err); border-color: var(--err); }
+
+@media (prefers-color-scheme: dark) {
+  .pill.st-scheduled { background: #0f2e23; color: #5fd6a4; border-color: #1e5b44; }
+}
+
+.acts { display: flex; gap: 8px; margin: 14px 0 4px; }
+.act {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 8px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink); text-decoration: none;
+  font-size: 14px; font-weight: 600;
+}
+.act:hover { border-color: var(--accent); color: var(--accent); }
+.act svg { width: 17px; height: 17px; }
+
+.details { display: grid; gap: 7px; margin-top: 14px; font-size: 14px; }
+.details .d { display: flex; gap: 10px; align-items: baseline; }
+.details .k { flex: none; width: 96px; color: var(--muted); font-size: 12.5px; }
+
+.jobFoot {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+}
+.statusSel {
+  flex: none;
+  padding: 9px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 600;
+}
+.officeNotes { flex: 1; padding: 9px 11px; font-size: 14px; }
+.saved { font-size: 12.5px; font-weight: 600; color: var(--ok); }
+
+.empty {
+  padding: 48px 24px; text-align: center;
+  color: var(--muted); font-size: 15px;
 }
 
 /* honour reduced-motion preferences */

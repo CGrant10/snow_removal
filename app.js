@@ -5,6 +5,9 @@
 const CFG = window.SNOW_CONFIG;
 const $ = (id) => document.getElementById(id);
 
+/* Bump together with VERSION in sw.js on every deploy. */
+const VERSION = "1.1.0";
+
 const STEPS = 5;              // 0..4 are input steps, 5 is the done screen
 const STEP_NAMES = ["Services", "Property", "Schedule", "Contact", "Review"];
 let step = 0;
@@ -49,13 +52,94 @@ function boot() {
   renderTriggers();
   renderWindows();
 
+  $("appVersion").textContent = "v" + VERSION;
+
   $("startDate").valueAsDate = new Date();
   $("nextBtn").addEventListener("click", next);
   $("backBtn").addEventListener("click", back);
   $("againBtn").addEventListener("click", () => location.reload());
   $("pileSpot").addEventListener("input", (e) => (state.pileSpot = e.target.value));
 
+  installer();
+  serviceWorker();
   show(0);
+}
+
+/* ------------------------------------------------------------ install
+   Chrome and Edge fire beforeinstallprompt and let us show a real
+   button. iOS Safari never has, so there the same button explains the
+   Share > Add to Home Screen route instead.                           */
+function installer() {
+  const buttons = [$("installBtn"), $("installBtnSm")];
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const installed =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  let prompt = null;
+  const showButtons = (on) => buttons.forEach((b) => (b.hidden = !on));
+
+  if (installed) return;                       // already on their home screen
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();                        // we choose when to ask
+    prompt = e;
+    showButtons(true);
+  });
+
+  window.addEventListener("appinstalled", () => {
+    prompt = null;
+    showButtons(false);
+    $("iosHint").hidden = true;
+  });
+
+  buttons.forEach((b) => b.addEventListener("click", async () => {
+    if (prompt) {
+      prompt.prompt();
+      await prompt.userChoice;                 // resolves whichever way
+      prompt = null;
+      showButtons(false);
+      return;
+    }
+    $("iosHint").hidden = false;               // iOS, or prompt already used
+  }));
+
+  $("iosHintClose").addEventListener("click", () => ($("iosHint").hidden = true));
+
+  if (isIOS) showButtons(true);                // no event ever comes on iOS
+}
+
+/* ------------------------------------------------------------ updates */
+function serviceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  // file:// has no service worker support and would only throw.
+  if (location.protocol === "file:") return;
+
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register("sw.js");
+
+      reg.addEventListener("updatefound", () => {
+        const fresh = reg.installing;
+        if (!fresh) return;
+        fresh.addEventListener("statechange", () => {
+          // A controller already exists, so this is an update rather than
+          // the first install. Offer it — never reload from under someone
+          // who is halfway through the form.
+          if (fresh.state === "installed" && navigator.serviceWorker.controller) {
+            $("updatePill").hidden = false;
+          }
+        });
+      });
+
+      $("updatePill").addEventListener("click", () => {
+        reg.waiting && reg.waiting.postMessage("skip-waiting");
+        location.reload();
+      });
+    } catch (err) {
+      console.warn("service worker registration failed", err);
+    }
+  });
 }
 
 /* ------------------------------------------------------------ render */
@@ -407,14 +491,35 @@ async function submit() {
     show(STEPS);
   } catch (ex) {
     console.error(ex);
-    err.textContent =
-      `Couldn't send that (${ex.message}). Call or text us at ${CFG.business.phone} ` +
-      `and we'll take it down by hand.`;
+
+    /* Never imply a request went through when it didn't — someone whose
+       driveway is buried has to know to pick up the phone instead. */
+    err.textContent = navigator.onLine
+      ? `Couldn't send that (${ex.message}). Call or text us at ` +
+        `${CFG.business.phone} and we'll take it down by hand.`
+      : `You're offline, so this hasn't been sent yet. Your answers are ` +
+        `still here — we'll try again the moment you're back on, or call ` +
+        `us at ${CFG.business.phone}.`;
     err.hidden = false;
+
+    if (!navigator.onLine) retryWhenOnline();
   } finally {
     btn.disabled = false;
     btn.textContent = "Send request";
   }
+}
+
+/* One pending retry at a time, and only while they're still on the review
+   step. Anything more would be a background queue pretending to be a
+   confirmation. */
+let retryArmed = false;
+function retryWhenOnline() {
+  if (retryArmed) return;
+  retryArmed = true;
+  window.addEventListener("online", () => {
+    retryArmed = false;
+    if (step === STEPS - 1) submit();
+  }, { once: true });
 }
 
 /* ---- Delivery adapters. Each takes the payload and throws on failure. ---- */

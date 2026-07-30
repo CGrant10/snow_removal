@@ -18,7 +18,7 @@ var SETTINGS = {
   SHEET_NAME: 'Reservations',
 
   // Where the "new reservation" email goes. Leave '' for no email.
-  NOTIFY_EMAIL: 'you@example.com',
+  NOTIFY_EMAIL: 'grantcole7@gmail.com',
 
   // Optional carrier email-to-SMS address for a text, e.g.
   // '7015550134@vtext.com' (Verizon), '@txt.att.net', '@tmomail.net'.
@@ -28,6 +28,13 @@ var SETTINGS = {
   // Keeps casual bots out. It ships in the page source, so it is a speed
   // bump, not real security.
   SHARED_SECRET: '',
+
+  // REQUIRED to use admin.html. Anyone who knows the /exec URL and this
+  // passphrase can read every customer's name, address, and phone number.
+  // Make it long, don't reuse a password, and see the "Locking down the
+  // admin page" section of README_SETUP.md for the stronger option.
+  // Empty means the admin endpoints are switched off entirely.
+  ADMIN_PASSPHRASE: '',
 
   // Status values offered as a dropdown in column C.
   STATUSES: ['New', 'Quoted', 'Scheduled', 'Done', 'Declined'],
@@ -58,6 +65,7 @@ var COLUMNS = [
   'Crew notes',
   'Estimate',
   'Estimate basis',
+  'Office notes',
 ];
 
 /**
@@ -99,7 +107,13 @@ function doGet() {
   return json({ ok: true, service: 'snow-reservations' });
 }
 
-/** The form posts here. */
+/**
+ * Everything posts here. Three actions:
+ *
+ *   (none)   a customer submitting the public form. Anonymous by design.
+ *   list     admin.html loading the job board.       Passphrase required.
+ *   update   admin.html changing a status or note.   Passphrase required.
+ */
 function doPost(e) {
   // One writer at a time, so two people submitting at once cannot land on
   // the same row.
@@ -117,6 +131,21 @@ function doPost(e) {
 
     var p = JSON.parse(e.postData.contents);
 
+    // ---- admin actions, behind the passphrase ----
+    if (p.action === 'list' || p.action === 'update') {
+      if (!SETTINGS.ADMIN_PASSPHRASE) {
+        return json({ ok: false, error: 'admin is switched off' });
+      }
+      if (p.passphrase !== SETTINGS.ADMIN_PASSPHRASE) {
+        // Slows a script guessing passphrases without annoying a human who
+        // fat-fingered theirs once.
+        Utilities.sleep(1200);
+        return json({ ok: false, error: 'wrong passphrase' });
+      }
+      return p.action === 'list' ? handleList(p) : handleUpdate(p);
+    }
+
+    // ---- anonymous: a customer submitting the form ----
     if (SETTINGS.SHARED_SECRET && p.secret !== SETTINGS.SHARED_SECRET) {
       return json({ ok: false, error: 'bad secret' });
     }
@@ -141,6 +170,76 @@ function doPost(e) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ============================ ADMIN ACTIONS =========================== */
+
+function adminSheet() {
+  return SpreadsheetApp.getActiveSpreadsheet()
+                       .getSheetByName(SETTINGS.SHEET_NAME);
+}
+
+/** Every reservation, newest first, as objects keyed by column name. */
+function handleList(p) {
+  var sheet = adminSheet();
+  if (!sheet) return json({ ok: false, error: 'run setup() first' });
+
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) {
+    return json({ ok: true, columns: COLUMNS, reservations: [] });
+  }
+
+  var head = values.shift();
+  var rows = values.map(function (r, i) {
+    var o = { _row: i + 2 };            // sheet row, for updates
+    head.forEach(function (h, j) {
+      var v = r[j];
+      o[h] = (v instanceof Date) ? v.toISOString() : v;
+    });
+    return o;
+  });
+
+  rows.reverse();                        // newest first
+  var limit = Math.min(Number(p.limit) || 300, 1000);
+
+  return json({
+    ok: true,
+    columns: head,
+    statuses: SETTINGS.STATUSES,
+    total: rows.length,
+    reservations: rows.slice(0, limit),
+  });
+}
+
+/** Change the status and/or office notes on one reservation. */
+function handleUpdate(p) {
+  var sheet = adminSheet();
+  if (!sheet) return json({ ok: false, error: 'run setup() first' });
+  if (!p.reference) return json({ ok: false, error: 'no reference' });
+
+  if (p.status && SETTINGS.STATUSES.indexOf(p.status) === -1) {
+    return json({ ok: false, error: 'unknown status' });
+  }
+
+  var refCol = COLUMNS.indexOf('Reference') + 1;
+  var refs = sheet.getRange(2, refCol, Math.max(sheet.getLastRow() - 1, 1), 1)
+                  .getValues();
+
+  for (var i = 0; i < refs.length; i++) {
+    if (refs[i][0] !== p.reference) continue;
+
+    var row = i + 2;
+    if (p.status) {
+      sheet.getRange(row, COLUMNS.indexOf('Status') + 1).setValue(p.status);
+    }
+    if (typeof p.officeNotes === 'string') {
+      sheet.getRange(row, COLUMNS.indexOf('Office notes') + 1)
+           .setValue(p.officeNotes);
+    }
+    return json({ ok: true, reference: p.reference, row: row });
+  }
+
+  return json({ ok: false, error: 'reference not found' });
 }
 
 /* ============================== HELPERS =============================== */
@@ -186,6 +285,7 @@ function rowFrom(p) {
     job.notes || '',
     est.amount || '',
     est.kind === 'monthly' ? 'per month' : 'per visit',
+    '',  // Office notes — filled in from the admin page, never by the form
   ];
 }
 

@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Reserve snow removal</title>
 <meta name="description" content="Reserve driveway plowing, sidewalk clearing, and ice melt in a couple of minutes.">
-<meta name="theme-color" content="#0e1c33">
+<meta name="theme-color" content="#10233f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Snow Removal">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <!-- same crystal as the sprite's #i-flake, inlined so the tab icon matches -->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231462c9' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2.6 20.1 7.3v9.4L12 21.4 3.9 16.7V7.3Z'/><path d='M12 7.6v8.8'/><path d='M8.2 9.8 15.8 14.2'/><path d='M15.8 9.8 8.2 14.2'/></svg>">
 <link rel="stylesheet" href="styles.css">
@@ -76,6 +82,13 @@
     <path d="M5 12.6 9.7 17.3 19 6.8"/>
   </symbol>
 
+  <!-- install to home screen -->
+  <symbol id="i-install" viewBox="0 0 24 24">
+    <path d="M12 3.6v10.8"/>
+    <path d="m7.8 10.6 4.2 4.2 4.2-4.2"/>
+    <path d="M4.4 17.2v1.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8v-1.4"/>
+  </symbol>
+
 </svg>
 
 <!-- ============================================ compact bar (mobile only) -->
@@ -88,7 +101,10 @@
       <p id="bizAreaSm" class="muted sm"></p>
     </div>
   </div>
-  <a id="bizPhoneSm" class="callbtn" href="#">Call</a>
+  <div class="topActions">
+    <button id="installBtnSm" class="callbtn" hidden>Install</button>
+    <a id="bizPhoneSm" class="callbtn" href="#">Call</a>
+  </div>
 </header>
 <div class="progress" id="progress"></div>
 </div>
@@ -117,9 +133,15 @@
         <span class="per" id="railPer"></span>
       </div>
       <ul class="trust" id="trustList"></ul>
+      <button id="installBtn" class="railInstall" hidden>
+        <svg class="dl" aria-hidden="true"><use href="#i-install"></use></svg>
+        Install this app
+      </button>
+
       <div class="railContact">
         <a id="bizPhone" href="#"></a>
         <p id="bizHours" class="muted sm"></p>
+        <p id="appVersion" class="muted sm ver"></p>
       </div>
     </div>
   </aside>
@@ -268,6 +290,16 @@
     </footer>
   </div>
 </div>
+
+<!-- iOS has no install prompt; the Install button reveals this instead -->
+<div class="iosHint" id="iosHint" hidden>
+  <p><strong>Add to Home Screen</strong></p>
+  <p>Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
+  <button class="btn ghost sm" id="iosHintClose">Got it</button>
+</div>
+
+<!-- shown when a new version has been downloaded in the background -->
+<button class="updatePill" id="updatePill" hidden>Update available — tap to reload</button>
 
 <script src="config.js"></script>
 <script src="app.js"></script>
