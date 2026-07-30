@@ -1,0 +1,192 @@
+:root {
+  --bg: #0b1220;
+  --panel: #121c30;
+  --panel-2: #17233c;
+  --line: #24334f;
+  --ink: #eef4ff;
+  --muted: #93a4c2;
+  --accent: #4ea3ff;
+  --accent-ink: #04121f;
+  --ok: #3ddc97;
+  --err: #ff7a7a;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f3f6fb;
+    --panel: #ffffff;
+    --panel-2: #eef3fa;
+    --line: #d5e0ef;
+    --ink: #10182a;
+    --muted: #5a6b87;
+    --accent: #1668c7;
+    --accent-ink: #ffffff;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding-bottom: 88px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---------------------------------------------------------- top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.mark {
+  font-size: 26px;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+h2 { font-size: 21px; margin: 0 0 6px; }
+h3 { font-size: 13px; margin: 22px 0 8px; text-transform: uppercase;
+     letter-spacing: .08em; color: var(--muted); }
+p { margin: 0 0 14px; }
+.muted { color: var(--muted); font-size: 14px; }
+
+.callbtn {
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- progress */
+.progress { display: flex; gap: 4px; padding: 0 18px; margin-top: 14px; }
+.progress i {
+  flex: 1; height: 4px; border-radius: 999px;
+  background: var(--line); transition: background .2s;
+}
+.progress i.on { background: var(--accent); }
+
+/* ---------------------------------------------------------- layout */
+main { max-width: 620px; margin: 0 auto; padding: 20px 18px 40px; }
+.step[hidden] { display: none; }
+
+/* ---------------------------------------------------------- cards */
+.cards { display: grid; gap: 10px; }
+.cards.tight { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+.card {
+  display: flex; gap: 12px; align-items: flex-start;
+  text-align: left;
+  width: 100%;
+  padding: 14px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.card:hover { border-color: var(--accent); }
+.card.sel { border-color: var(--accent); background: var(--panel-2); }
+.card .ico { font-size: 22px; line-height: 1; }
+.card .t { font-weight: 650; }
+.card .d { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.card .p { margin-left: auto; font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+/* ---------------------------------------------------------- chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  color: inherit; font: inherit; font-size: 14px;
+  cursor: pointer;
+}
+.chip.sel { border-color: var(--accent); background: var(--panel-2); font-weight: 600; }
+
+/* ---------------------------------------------------------- inputs */
+.field { display: block; margin: 14px 0; }
+.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+input, textarea, select {
+  width: 100%;
+  padding: 12px 13px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font: inherit;
+}
+input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.grid2 { display: grid; gap: 0 12px; grid-template-columns: 1fr 1fr; }
+
+.checks { display: grid; gap: 8px; }
+.check { display: flex; gap: 10px; align-items: center; font-size: 15px; cursor: pointer; }
+.check input { width: 18px; height: 18px; flex: none; accent-color: var(--accent); }
+.check.big { margin-top: 16px; }
+
+/* ---------------------------------------------------------- summary */
+.summary { display: grid; gap: 1px; background: var(--line);
+           border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.row { display: flex; gap: 14px; padding: 12px 14px; background: var(--panel); }
+.row .k { color: var(--muted); font-size: 14px; min-width: 118px; }
+.row .v { flex: 1; }
+
+.estimate {
+  margin-top: 18px; padding: 16px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.estimate .big { font-size: 30px; font-weight: 700; }
+.fineprint { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+
+.err { color: var(--err); font-size: 14px; }
+
+/* ---------------------------------------------------------- done */
+.done { text-align: center; padding-top: 40px; }
+.bigcheck {
+  width: 68px; height: 68px; margin: 0 auto 18px;
+  display: grid; place-items: center;
+  border-radius: 50%; background: var(--ok); color: #04231a;
+  font-size: 34px; font-weight: 700;
+}
+.ref {
+  display: inline-block; margin: 8px auto 22px; padding: 8px 14px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; font-size: 13px; color: var(--muted);
+}
+
+/* ---------------------------------------------------------- nav */
+.navbar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.runningTotal { flex: 1; text-align: center; font-size: 14px; color: var(--muted); }
+.btn {
+  padding: 13px 22px; border-radius: 11px;
+  border: 1.5px solid var(--line);
+  font: inherit; font-weight: 650; cursor: pointer;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn[disabled] { opacity: .55; cursor: progress; }

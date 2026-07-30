@@ -1,0 +1,136 @@
+# Snow removal reservations — skeleton
+
+A five-step reservation form. Customer picks services, describes the property,
+picks a schedule, leaves contact info, reviews a ballpark estimate, and sends.
+No accounts, no payments, no database — just a well-structured request that
+lands somewhere you'll actually see it.
+
+```
+index.html    the form
+styles.css    dark/light styling
+config.js     ← everything you'd want to change lives here
+app.js        form logic + the delivery adapters
+server.py     optional backend: logs to JSONL, emails/texts you
+```
+
+## Run it
+
+Static, no build step:
+
+```bash
+python -m http.server 8123 --directory snow_removal
+```
+
+Or with the backend (also serves the form):
+
+```bash
+python snow_removal/server.py
+```
+
+Open http://localhost:8123 — it's mobile-first, so shrink the window or open
+it on your phone.
+
+## Configuring the business
+
+Everything your buddy will want to tweak is in [config.js](config.js):
+business name and phone, the service list and prices, driveway size tiers and
+their multipliers, surfaces, plans (one-time / auto per-visit / season
+contract), trigger depths, time windows, and the "anything we should know"
+checkboxes. Add a service by appending one object to `services`; the UI and the
+estimate pick it up automatically.
+
+The estimate is deliberately labeled a ballpark, not a quote — the form never
+commits to a price and never takes payment.
+
+---
+
+## Where do the requests go?
+
+`config.js → delivery.mode` picks one adapter. All of them are already written
+in [app.js](app.js).
+
+### 1. `mailto` — zero setup, zero cost
+
+Opens the customer's own email app with everything pre-filled. Works instantly,
+costs nothing, needs no account. Downside: the customer has to hit send in
+their mail app, and some people bail there. Fine for day one; you'll outgrow it.
+
+### 2. `web3forms` — the one I'd start with
+
+Free form-to-email service. Sign up at web3forms.com, paste the access key into
+`config.js`, done. No server, no backend, works on GitHub Pages or Netlify.
+Reservations land in your inbox as readable text.
+
+**Getting a text too:** most carriers have an email-to-SMS gateway. Set
+`ccSmsGateway` to your number at your carrier's domain and the same email
+arrives as a text, free:
+
+| Carrier  | Address format          |
+|----------|-------------------------|
+| Verizon  | `7015550134@vtext.com`  |
+| AT&T     | `7015550134@txt.att.net`|
+| T-Mobile | `7015550134@tmomail.net`|
+
+Gateways truncate long messages and occasionally get filtered — good enough for
+"you got a job," not for the full details.
+
+### 3. `formspree` — same idea, different vendor
+
+Free tier is smaller (50/month) but the dashboard is nicer and it keeps a
+searchable archive of submissions. Paste your form URL into `config.js`.
+
+### 4. `webhook` — anything you control
+
+POSTs the JSON payload to a URL. Three good targets:
+
+**`server.py` (included).** Appends every reservation to `reservations.jsonl`
+and, if you set the SMTP environment variables, emails and/or texts you. Runs
+on the free tier of Render/Railway/Fly, or on a spare machine. Env vars are
+documented at the top of [server.py](server.py). Gmail needs an *app password*,
+not your account password.
+
+**Google Apps Script.** My pick if you want a spreadsheet you can sort and
+filter and share with a plow driver. Make a Sheet → Extensions → Apps Script →
+paste a `doPost(e)` that does `appendRow` plus `MailApp.sendEmail` → deploy as
+a web app with access set to "Anyone" → put that URL in `config.js`. Free,
+no server to keep alive, and your buddy gets a live job board he already knows
+how to use.
+
+**Zapier / Make.** Catch Hook trigger, then fan out to email, SMS, Slack,
+Google Calendar, whatever. Costs money past the free tier but requires no code.
+
+### Real SMS (Twilio) — a note
+
+Twilio can text you properly (no truncation, no carrier filtering), but the API
+key can never live in `config.js` — anything in the browser is public. It has
+to go through a server: form → `server.py` (or an Apps Script/Cloud Function) →
+Twilio. Also, US A2P 10DLC registration takes a few days and costs a few dollars
+a month. Start with the email-to-SMS gateway; move to Twilio when the volume
+justifies it.
+
+---
+
+## What this skeleton deliberately does *not* do
+
+Worth naming so nobody's surprised:
+
+- **No payments.** Adding Stripe means a real backend and PCI scope.
+- **No accounts or login.** Every submission is a fresh request.
+- **No calendar/capacity.** The form will happily accept twelve jobs for the
+  same pre-dawn window. Add capacity checks when the backend is real.
+- **No confirmation to the customer.** They get a reference number on screen.
+  Sending them an actual confirmation email needs the backend path (#4) or a
+  Formspree autoresponse.
+- **No photo upload.** Needs file storage.
+- **No spam protection.** A public form gets bots. Web3Forms and Formspree
+  include honeypot/captcha options — turn them on before it goes live.
+
+## Suggested next steps, in order
+
+1. Fill in real services and prices in `config.js`.
+2. Switch `delivery.mode` to `web3forms`, add the SMS gateway, test on a phone.
+3. Put it on Netlify or GitHub Pages with a real domain.
+4. When there are enough jobs to lose track of, move to the Apps Script
+   webhook so there's a spreadsheet of record.
+5. Only then consider a real backend with a calendar, customer accounts, and
+   route planning.

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reserve snow removal</title>
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>%E2%9D%84</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">❄</span>
+    <div>
+      <h1 id="bizName">Snow Removal</h1>
+      <p id="bizTagline" class="muted"></p>
+    </div>
+  </div>
+  <a id="bizPhone" class="callbtn" href="#">Call</a>
+</header>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<main id="app">
+
+  <!-- ------------------------------------------------ Step 1: services -->
+  <section class="step" data-step="0">
+    <h2>What do you need done?</h2>
+    <p class="muted">Pick everything that applies. You can change it later.</p>
+    <div id="serviceList" class="cards"></div>
+    <p class="err" id="err-services" hidden>Pick at least one service.</p>
+  </section>
+
+  <!-- ------------------------------------------------ Step 2: property -->
+  <section class="step" data-step="1" hidden>
+    <h2>Tell us about the property</h2>
+
+    <div id="sizeBlock">
+      <h3>Driveway size</h3>
+      <div id="sizeList" class="cards tight"></div>
+    </div>
+
+    <h3>Surface</h3>
+    <div id="surfaceList" class="chips"></div>
+
+    <h3>Anything we should know?</h3>
+    <div id="flagList" class="checks"></div>
+
+    <label class="field">
+      <span>Where should the snow go?</span>
+      <input type="text" id="pileSpot" placeholder="e.g. north side of the drive, not by the mailbox">
+    </label>
+  </section>
+
+  <!-- ------------------------------------------------ Step 3: schedule -->
+  <section class="step" data-step="2" hidden>
+    <h2>How often, and when?</h2>
+
+    <div id="planList" class="cards tight"></div>
+
+    <div id="triggerBlock" hidden>
+      <h3>Come out after how much snow?</h3>
+      <div id="triggerList" class="chips"></div>
+    </div>
+
+    <div id="dateBlock">
+      <label class="field">
+        <span>Preferred start date</span>
+        <input type="date" id="startDate">
+      </label>
+    </div>
+
+    <h3>Time of day</h3>
+    <div id="windowList" class="cards tight"></div>
+  </section>
+
+  <!-- ------------------------------------------------ Step 4: contact -->
+  <section class="step" data-step="3" hidden>
+    <h2>Where are we going, and who do we call?</h2>
+
+    <div class="grid2">
+      <label class="field">
+        <span>Name *</span>
+        <input type="text" id="name" autocomplete="name" required>
+      </label>
+      <label class="field">
+        <span>Phone *</span>
+        <input type="tel" id="phone" autocomplete="tel" placeholder="701-555-0134" required>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Email</span>
+      <input type="email" id="email" autocomplete="email" placeholder="optional, for the confirmation">
+    </label>
+
+    <label class="field">
+      <span>Service address *</span>
+      <input type="text" id="address" autocomplete="street-address" required>
+    </label>
+
+    <div class="grid2">
+      <label class="field">
+        <span>City *</span>
+        <input type="text" id="city" autocomplete="address-level2" required>
+      </label>
+      <label class="field">
+        <span>ZIP</span>
+        <input type="text" id="zip" inputmode="numeric" autocomplete="postal-code">
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Notes for the crew</span>
+      <textarea id="notes" rows="3" placeholder="Gate code, where to park, anything fragile…"></textarea>
+    </label>
+
+    <label class="check big">
+      <input type="checkbox" id="textOk" checked>
+      <span>Text me when the crew is on the way</span>
+    </label>
+
+    <p class="err" id="err-contact" hidden>Name, phone, address, and city are required.</p>
+  </section>
+
+  <!-- ------------------------------------------------ Step 5: review -->
+  <section class="step" data-step="4" hidden>
+    <h2>Look this over</h2>
+    <div id="summary" class="summary"></div>
+
+    <div class="estimate" id="estimate"></div>
+    <p class="fineprint">
+      This is a ballpark, not a quote. We confirm the price by phone or text
+      before the first visit. Nothing is charged through this form.
+    </p>
+
+    <p class="err" id="err-submit" hidden></p>
+  </section>
+
+  <!-- ------------------------------------------------ Done -->
+  <section class="step done" data-step="5" hidden>
+    <div class="bigcheck">✓</div>
+    <h2>Request sent</h2>
+    <p class="muted" id="doneMsg"></p>
+    <pre id="doneRef" class="ref"></pre>
+    <button class="btn ghost" id="againBtn">Book another property</button>
+  </section>
+
+</main>
+
+<footer class="navbar">
+  <button class="btn ghost" id="backBtn" hidden>Back</button>
+  <div class="runningTotal" id="runningTotal"></div>
+  <button class="btn primary" id="nextBtn">Continue</button>
+</footer>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
