@@ -100,22 +100,36 @@ Gateways truncate long messages and occasionally get filtered — good enough fo
 Free tier is smaller (50/month) but the dashboard is nicer and it keeps a
 searchable archive of submissions. Paste your form URL into `config.js`.
 
-### 4. `webhook` — anything you control
+### 4. `gsheet` — reservations land in a Google Sheet
 
-POSTs the JSON payload to a URL. Three good targets:
+**The one to move to once there are enough jobs to lose track of.** Every
+request appends a row to a spreadsheet and emails (and optionally texts) you.
+The Sheet becomes the job board: sort it, filter it by service or trigger
+depth, share it with a driver, work it from the Sheets app on his phone.
+
+Setup — about fifteen minutes, no server, no cost — is in
+[apps_script/README_SETUP.md](apps_script/README_SETUP.md). The script itself
+is [apps_script/Code.gs](apps_script/Code.gs); `setup()` builds the header
+row, freezes the panes, and adds a Status dropdown
+(New / Quoted / Scheduled / Done / Declined).
+
+**Adding an admin is just sharing the Sheet.** Google handles who they are —
+no accounts to build, no passwords to store.
+
+Two things that trip everyone up once, both covered in the setup doc:
+deploying with **Access: Anyone** (required — it lets the script be *called*,
+it does not make the Sheet public), and remembering that editing `Code.gs`
+does nothing until you deploy a **new version**.
+
+### 5. `webhook` — anything you control
+
+POSTs the JSON payload to a URL. Two good targets:
 
 **`server.py` (included).** Appends every reservation to `reservations.jsonl`
 and, if you set the SMTP environment variables, emails and/or texts you. Runs
 on the free tier of Render/Railway/Fly, or on a spare machine. Env vars are
 documented at the top of [server.py](server.py). Gmail needs an *app password*,
 not your account password.
-
-**Google Apps Script.** My pick if you want a spreadsheet you can sort and
-filter and share with a plow driver. Make a Sheet → Extensions → Apps Script →
-paste a `doPost(e)` that does `appendRow` plus `MailApp.sendEmail` → deploy as
-a web app with access set to "Anyone" → put that URL in `config.js`. Free,
-no server to keep alive, and your buddy gets a live job board he already knows
-how to use.
 
 **Zapier / Make.** Catch Hook trigger, then fan out to email, SMS, Slack,
 Google Calendar, whatever. Costs money past the free tier but requires no code.
@@ -136,7 +150,10 @@ justifies it.
 Worth naming so nobody's surprised:
 
 - **No payments.** Adding Stripe means a real backend and PCI scope.
-- **No accounts or login.** Every submission is a fresh request.
+- **No accounts or login.** Every submission is a fresh request. With the
+  `gsheet` path, "admin" means someone you shared the Sheet with — Google is
+  the login. Real customer accounts and a purpose-built dashboard need a
+  backend with auth (Supabase is the cheap way in).
 - **No calendar/capacity.** The form will happily accept twelve jobs for the
   same pre-dawn window. Add capacity checks when the backend is real.
 - **No confirmation to the customer.** They get a reference number on screen.
@@ -151,7 +168,9 @@ Worth naming so nobody's surprised:
 1. Fill in real services and prices in `config.js`.
 2. Switch `delivery.mode` to `web3forms`, add the SMS gateway, test on a phone.
 3. Put it on Netlify or GitHub Pages with a real domain.
-4. When there are enough jobs to lose track of, move to the Apps Script
-   webhook so there's a spreadsheet of record.
-5. Only then consider a real backend with a calendar, customer accounts, and
+4. When there are enough jobs to lose track of, switch to `gsheet` so there's
+   a spreadsheet of record and somewhere to track status.
+5. Run a real season on the Sheet. Whatever annoys him about it is the spec
+   for a real dashboard — build the right thing instead of guessing.
+6. Only then consider a backend with auth, a calendar, customer accounts, and
    route planning.

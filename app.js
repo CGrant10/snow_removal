@@ -314,9 +314,26 @@ function esc(s) {
 }
 
 /* ------------------------------------------------------------ payload */
+
+/* Every id in the payload resolved to the words a human reads. Carried
+   along so a receiver — a spreadsheet, an inbox — never needs a copy of
+   config.js to make sense of a request. */
+function readableOf(p) {
+  const join = (ids, list) => ids.map((id) => labelFor(list, id)).join(", ");
+  return {
+    services: join(p.job.services, CFG.services),
+    plan: labelFor(CFG.plans, p.job.plan),
+    timeWindow: labelFor(CFG.timeWindows, p.job.timeWindow),
+    drivewaySize: p.property.drivewaySize
+      ? labelFor(CFG.drivewaySizes, p.property.drivewaySize) : "",
+    surface: p.property.surface ? labelFor(CFG.surfaces, p.property.surface) : "",
+    flags: join(p.property.flags, CFG.propertyFlags),
+  };
+}
+
 function buildPayload() {
   const e = estimate();
-  return {
+  const payload = {
     submittedAt: new Date().toISOString(),
     reference: "SNO-" + Math.random().toString(36).slice(2, 7).toUpperCase(),
     customer: {
@@ -344,23 +361,26 @@ function buildPayload() {
     },
     estimate: e,
   };
+
+  payload.readable = readableOf(payload);
+  return payload;
 }
 
 /* Plain-text version — what actually lands in an inbox or a phone */
 function asText(p) {
-  const L = (id) => labelFor(CFG.services, id);
+  const r = p.readable;
   return [
     `NEW RESERVATION  ${p.reference}`,
     ``,
     `${p.customer.name} — ${p.customer.phone}${p.customer.email ? " / " + p.customer.email : ""}`,
     `${p.property.address}, ${p.property.city} ${p.property.zip}`,
     ``,
-    `Services: ${p.job.services.map(L).join(", ")}`,
-    `Plan: ${labelFor(CFG.plans, p.job.plan)}${p.job.trigger ? ` (after ${p.job.trigger})` : ""}`,
-    `Start: ${p.job.startDate} — ${labelFor(CFG.timeWindows, p.job.timeWindow)}`,
-    p.property.drivewaySize ? `Driveway: ${labelFor(CFG.drivewaySizes, p.property.drivewaySize)}` : "",
-    p.property.surface ? `Surface: ${labelFor(CFG.surfaces, p.property.surface)}` : "",
-    p.property.flags.length ? `Flags: ${p.property.flags.map((f) => labelFor(CFG.propertyFlags, f)).join(", ")}` : "",
+    `Services: ${r.services}`,
+    `Plan: ${r.plan}${p.job.trigger ? ` (after ${p.job.trigger})` : ""}`,
+    `Start: ${p.job.startDate} — ${r.timeWindow}`,
+    r.drivewaySize ? `Driveway: ${r.drivewaySize}` : "",
+    r.surface ? `Surface: ${r.surface}` : "",
+    r.flags ? `Flags: ${r.flags}` : "",
     p.property.pileSpot ? `Snow goes: ${p.property.pileSpot}` : "",
     p.job.notes ? `Notes: ${p.job.notes}` : "",
     ``,
@@ -451,7 +471,32 @@ const DELIVERY = {
     if (!r.ok) throw new Error("HTTP " + r.status);
   },
 
-  /* Your own endpoint: server.py, Apps Script, Zapier, Twilio proxy… */
+  /* Google Sheet via the Apps Script in apps_script/Code.gs. */
+  async gsheet(payload) {
+    const cfg = CFG.delivery.gsheet;
+    if (!/^https:\/\/script\.google\.com\//.test(cfg.url)) {
+      throw new Error("no Apps Script URL in config.js");
+    }
+
+    /* text/plain on purpose. Apps Script web apps do not answer CORS
+       preflights, so an application/json body would be blocked before it
+       ever left the browser. A plain-text body is a "simple request" and
+       goes straight through — Code.gs parses it as JSON on the far side. */
+    const r = await fetch(cfg.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(cfg.sharedSecret
+        ? { ...payload, secret: cfg.sharedSecret }
+        : payload),
+      redirect: "follow",
+    });
+
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json().catch(() => ({}));
+    if (j.ok === false) throw new Error(j.error || "the sheet rejected it");
+  },
+
+  /* Your own endpoint: server.py, Zapier, a Twilio proxy… */
   async webhook(payload) {
     const cfg = CFG.delivery.webhook;
     const headers = { "Content-Type": "application/json" };

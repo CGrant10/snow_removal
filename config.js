@@ -27,11 +27,25 @@ window.SNOW_CONFIG = {
        "mailto"    – zero setup. Opens the customer's email client, pre-filled.
        "web3forms" – free form-to-email service. Put your access key below.
        "formspree" – same idea, different vendor. Put your form URL below.
+       "gsheet"    – appends a row to a Google Sheet and emails/texts you.
+                     Setup is in apps_script/README_SETUP.md. This is the one
+                     to use once there are enough jobs to lose track of.
        "webhook"   – POST JSON to any endpoint you control (server.py, a
-                     Google Apps Script, a Zapier/Make hook, Twilio proxy...).
+                     Zapier/Make hook, a Twilio proxy...).
   --------------------------------------------------------- */
   delivery: {
     mode: "console",
+
+    gsheet: {
+      /* The /exec URL Apps Script gives you when you deploy the web app.
+         Must start with https://script.google.com/ */
+      url: "PASTE-YOUR-APPS-SCRIPT-EXEC-URL",
+      /* Optional. If set, must match SHARED_SECRET in Code.gs. Sent in the
+         body, not a header — a custom header would trip CORS preflight.
+         It is visible to anyone who reads the page source, so treat it as
+         a speed bump against bots, not a real secret. */
+      sharedSecret: "",
+    },
 
     web3forms: {
       accessKey: "PASTE-YOUR-WEB3FORMS-ACCESS-KEY",

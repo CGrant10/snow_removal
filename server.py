@@ -48,6 +48,9 @@ def as_text(p: dict) -> str:
     prop = p.get("property", {})
     job = p.get("job", {})
     est = p.get("estimate", {})
+    # The form resolves every id to its label before sending, so this file
+    # never needs a copy of the service list. Falls back to raw ids.
+    r = p.get("readable", {})
 
     lines = [
         f"NEW RESERVATION  {p.get('reference', '?')}",
@@ -57,17 +60,17 @@ def as_text(p: dict) -> str:
         + (f" / {cust['email']}" if cust.get("email") else ""),
         f"{prop.get('address')}, {prop.get('city')} {prop.get('zip', '')}".strip(),
         "",
-        f"Services: {', '.join(job.get('services', []))}",
-        f"Plan: {job.get('plan')}"
+        f"Services: {r.get('services') or ', '.join(job.get('services', []))}",
+        f"Plan: {r.get('plan') or job.get('plan')}"
         + (f" (after {job['trigger']})" if job.get("trigger") else ""),
-        f"Start: {job.get('startDate')} / {job.get('timeWindow')}",
+        f"Start: {job.get('startDate')} / {r.get('timeWindow') or job.get('timeWindow')}",
     ]
-    if prop.get("drivewaySize"):
-        lines.append(f"Driveway: {prop['drivewaySize']}")
-    if prop.get("surface"):
-        lines.append(f"Surface: {prop['surface']}")
-    if prop.get("flags"):
-        lines.append(f"Flags: {', '.join(prop['flags'])}")
+    if r.get("drivewaySize") or prop.get("drivewaySize"):
+        lines.append(f"Driveway: {r.get('drivewaySize') or prop['drivewaySize']}")
+    if r.get("surface") or prop.get("surface"):
+        lines.append(f"Surface: {r.get('surface') or prop['surface']}")
+    if r.get("flags") or prop.get("flags"):
+        lines.append(f"Flags: {r.get('flags') or ', '.join(prop['flags'])}")
     if prop.get("pileSpot"):
         lines.append(f"Snow goes: {prop['pileSpot']}")
     if job.get("notes"):
