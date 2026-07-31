@@ -296,9 +296,51 @@ function publicSettings_(s) {
 
 /* ============================== ENDPOINT ============================== */
 
-/** Health check — open the /exec URL in a browser to see this. */
+/**
+ * Which build of this file is deployed. Bump it when you change
+ * anything here, so the health check below can answer "did my paste
+ * actually go live?" — the editor shows what you last saved, not what
+ * the /exec URL is serving, and those two drift apart constantly.
+ */
+var CODE_VERSION = '1.9.3';
+
+/**
+ * Health check. Open the /exec URL in a browser.
+ *
+ * `code` is the version of Code.gs actually being served, so you can
+ * tell a stale deployment from a fresh one without guessing, and pick
+ * the right entry out of Manage deployments by matching `deployment`
+ * against the URL in config.js.
+ */
 function doGet() {
-  return json({ ok: true, service: 'snow-reservations' });
+  var tabs = {};
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().getSheets().forEach(function (sh) {
+      tabs[sh.getName()] = Math.max(sh.getLastRow() - 1, 0);
+    });
+  } catch (err) {
+    tabs = { error: String(err) };
+  }
+
+  var accounts = 0;
+  var bootstrap = false;
+  try {
+    MEMO_ = {};
+    var all = loadAdmins_();
+    accounts = all.length;
+    bootstrap = all.some(function (a) { return isBootstrap_(a); });
+  } catch (err) { /* tab may not exist yet */ }
+
+  return json({
+    ok: true,
+    service: 'snow-reservations',
+    code: CODE_VERSION,
+    tabs: tabs,
+    accounts: accounts,
+    // True while someone still has to sign in with ADMIN_PASSPHRASE and
+    // set a real password.
+    awaitingFirstPassword: bootstrap,
+  });
 }
 
 /**

@@ -104,11 +104,21 @@ Push, submit a test reservation, and watch the row appear.
 
 ## Checking it works
 
-Open the `/exec` URL in a browser. You should see:
+Open the `/exec` URL in a browser. You should see something like:
 
 ```json
-{"ok":true,"service":"snow-reservations"}
+{"ok":true,"service":"snow-reservations","code":"1.9.3",
+ "tabs":{"Reservations":12,"Settings":4,"Admins":1,"Sessions":2},
+ "accounts":1,"awaitingFirstPassword":true}
 ```
+
+- **`code`** is the version of `Code.gs` actually being served. If it
+  doesn't match the `CODE_VERSION` at the top of the file you pasted, the
+  deployment is stale — you saved but didn't deploy a new version.
+- **`tabs`** lists every tab and its row count, so you can see at a glance
+  whether `Reservations` exists and whether the others got created.
+- **`awaitingFirstPassword`** is true while someone still has to sign in
+  with `ADMIN_PASSPHRASE` and choose a real password.
 
 If you get an error page instead, the deployment settings are wrong — go
 back to step 4 and check **Execute as: Me** and **Access: Anyone**.
@@ -118,6 +128,16 @@ back to step 4 and check **Execute as: Me** and **Access: Anyone**.
 Apps Script keeps serving the *deployed* version, not what's in the editor.
 After editing you must **Deploy → Manage deployments → pencil icon → Version:
 New version → Deploy**. Same URL, new code. This trips up everyone once.
+
+**Which deployment?** The names in that list are free text and mean
+nothing — "Untitled" and a named one are equally likely to be the live
+one. What identifies it is the **Deployment ID**, the long `AKfycb…`
+string in the middle of the Web app URL. Match it against the `url` in
+[../config.js](../config.js) and edit that entry. Creating a *new*
+deployment instead gives you a different URL, and both apps keep talking
+to the old one until you paste the new URL into `config.js`.
+
+Then reload the `/exec` URL and check `code` went up.
 
 ## Setting the admin passphrase
 

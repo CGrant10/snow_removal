@@ -16,7 +16,7 @@
    a slow load. The cache is the offline fallback, not the fast path.
    ============================================================ */
 
-const VERSION = "v1.9.2";
+const VERSION = "v1.9.3";
 const CACHE = `snow-${VERSION}`;
 
 /* How far up the shared files live. "../" from an app folder, "./" from
