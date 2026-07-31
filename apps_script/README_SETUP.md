@@ -143,11 +143,31 @@ Pick something long and don't reuse it. Three or four unrelated words beats a
 short scramble: `north-forty-plow-2026` is fine, `snow1` is not. Everyone who
 uses the board shares it, so changing it signs everybody out.
 
-> **Do this before you use the admin center.** The passphrase in `Code.gs`
-> is `snowadmin1` and this repo is public, so right now anyone who finds the
-> board can sign in. That used to mean reading reservations. It now also
-> means editing your prices and publishing a message to every customer who
-> opens the form. Move it to a Script Property first.
+`ADMIN_PASSPHRASE` is no longer what the board checks — accounts are. It's
+now only the **bootstrap**: on the first request after you deploy, the
+script creates a master account called `owner` using it, flagged
+must-change. Sign in as `owner` with that value and you'll be made to
+choose a real password before anything else works.
+
+> Because the shipped passphrase (`snowadmin1`) is in a public repo, do the
+> first sign-in yourself, right after deploying, before you hand the board
+> URL to anyone. Once `owner` has a real password the old value is dead.
+
+## The Admins and Sessions tabs
+
+`setup()` creates both. **Admins** is one row per person — username, role,
+salt, password hash, round count, and the must-change / active flags.
+**Sessions** is one row per signed-in device, holding the SHA-256 of a
+token rather than the token itself, so signing one phone out leaves the
+others alone. Expired rows are swept on every sign-in.
+
+You can edit the Admins tab by hand, with two caveats: never type a
+password into it (only hashes belong there — set passwords through the
+board), and deleting someone's row doesn't drop their Sessions rows, so use
+**Delete** in the admin center if you want them signed out immediately.
+
+Locked yourself out? Delete every row in **Admins** below the header. The
+next request recreates `owner` from `ADMIN_PASSPHRASE`.
 
 ## The Settings tab
 

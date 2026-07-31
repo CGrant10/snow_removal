@@ -48,7 +48,7 @@
   </symbol>
 </svg>
 
-<!-- ================================================ passphrase gate -->
+<!-- ================================================ sign-in gate -->
 <div class="gate" id="gate">
   <div class="gateCard">
     <span class="mark"><svg class="markIcon"><use href="#i-flake"></use></svg></span>
@@ -56,7 +56,13 @@
     <p class="muted">Staff only. Customers use the reservation form.</p>
 
     <label class="field">
-      <span>Passphrase</span>
+      <span>Username</span>
+      <input type="text" id="user" autocomplete="username"
+             autocapitalize="none" spellcheck="false">
+    </label>
+
+    <label class="field">
+      <span>Password</span>
       <input type="password" id="pass" autocomplete="current-password">
     </label>
 
@@ -92,6 +98,7 @@
       <div>
         <h1>Job board</h1>
         <p class="muted sm" id="counts"></p>
+        <p class="muted sm" id="whoami"></p>
       </div>
     </div>
     <div class="topActions">
@@ -122,6 +129,36 @@
     <p class="verLine always">
       <button id="appVersion" class="verBtn" title="Check for updates"></button>
     </p>
+  </div>
+</div>
+
+<!-- ================================================ forced password change
+     Shown instead of the board for a brand-new account, or after a master
+     resets someone's password. The server refuses every other action
+     until this is done, so there's no way past it. -->
+<div class="gate" id="passwordChange" hidden>
+  <div class="gateCard">
+    <span class="mark"><svg class="markIcon"><use href="#i-flake"></use></svg></span>
+    <h1>Set a new password</h1>
+    <p class="muted">Signed in as <strong id="pwWho"></strong>. Pick something
+      only you know before you go any further.</p>
+
+    <label class="field">
+      <span>Current password</span>
+      <input type="password" id="pwCurrent" autocomplete="current-password">
+    </label>
+    <label class="field">
+      <span>New password — 10 characters or more</span>
+      <input type="password" id="pwNew" autocomplete="new-password">
+    </label>
+    <label class="field">
+      <span>New password again</span>
+      <input type="password" id="pwNew2" autocomplete="new-password">
+    </label>
+
+    <p class="err" id="pwErr" hidden></p>
+    <button class="btn primary wide" id="pwSave">Save password</button>
+    <button class="btn ghost wide" id="pwCancel">Sign out instead</button>
   </div>
 </div>
 
@@ -196,19 +233,53 @@
         <textarea id="setTrust" rows="3"></textarea></label>
     </section>
 
-    <!-- ---------------------------------------------- prices -->
+    <!-- ---------------------------------------------- services -->
     <section class="panel">
-      <h3>Prices</h3>
-      <p class="muted sm warnNote">These change what customers are quoted.
+      <h3>Services &amp; prices</h3>
+      <p class="muted sm">Uncheck a service to take it off the reservation
+        form. Drag isn't needed — use the arrows to reorder. Names and
+        descriptions are yours to change; clearing one puts the shipped
+        wording back.</p>
+      <p class="muted sm warnNote">Prices change what customers are quoted.
         Saving asks you to confirm.</p>
 
-      <div id="priceFields"></div>
+      <div id="serviceRows"></div>
 
       <h4>Driveway size multipliers</h4>
       <div id="sizeFields"></div>
 
       <label class="field narrow"><span>Season monthly factor</span>
         <input type="number" id="setSeason" step="0.1" min="0"></label>
+    </section>
+
+    <!-- ---------------------------------------------- accounts -->
+    <section class="panel">
+      <h3>Admin accounts</h3>
+      <p class="muted sm">A plain admin gets the job board only — statuses
+        and office notes. Master accounts also get this page: prices,
+        alerts, and adding or removing people.</p>
+
+      <div class="acctList" id="acctList"></div>
+
+      <h4>Add someone</h4>
+      <label class="field narrow"><span>Username</span>
+        <input type="text" id="acctUser" autocapitalize="none"
+               spellcheck="false" placeholder="dispatch"></label>
+
+      <span class="fieldLabel">Role</span>
+      <div class="chips" id="acctRole">
+        <button type="button" class="chip sel" data-role="admin">Admin</button>
+        <button type="button" class="chip" data-role="master">Master</button>
+      </div>
+
+      <label class="field"><span>Temporary password — they must change it</span>
+        <input type="password" id="acctPass" autocomplete="new-password"></label>
+
+      <div class="panelActions">
+        <button class="btn ghost" id="acctGenerate">Suggest one</button>
+        <button class="btn primary" id="acctAdd">Add admin</button>
+      </div>
+      <p class="err" id="acctErr" hidden></p>
     </section>
 
     <div class="centerFoot">

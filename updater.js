@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.8.0";
+const APP_VERSION = "1.9.0";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";

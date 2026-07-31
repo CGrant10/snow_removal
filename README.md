@@ -10,7 +10,7 @@ Two surfaces, one codebase:
 | | Who | What it does |
 |---|---|---|
 | `reserve/` | **anyone, anonymous** | The reservation form. No login, no account, nothing stored in the browser. |
-| `board/` | **staff, passphrase** | The job board. Read every request, change status, add office notes, call/text/map the customer. |
+| `board/` | **staff, accounts** | The job board. Read every request, change status, add office notes, call/text/map the customer. |
 
 Each lives in its own folder because a PWA's install scope is a plain path
 prefix. While both sat at the root they shared the scope `/snow_removal/`,
@@ -253,6 +253,54 @@ deploying with **Access: Anyone** (required — it lets the script be *called*,
 it does not make the Sheet public), and remembering that editing `Code.gs`
 does nothing until you deploy a **new version**.
 
+## Admin accounts
+
+Real accounts, not one shared word. Two roles:
+
+| | master | admin |
+|---|---|---|
+| Job board, statuses, office notes | ✓ | ✓ |
+| Business info, services, prices | ✓ | — |
+| Publish a customer alert | ✓ | — |
+| Add / remove / reset accounts | ✓ | — |
+
+The server enforces this. Hiding the Settings button from a plain admin is
+just manners — the actions behind it are refused by role regardless.
+
+**Getting started.** Run `setup()` and the script turns your existing
+`ADMIN_PASSPHRASE` into a master account called `owner`, flagged
+must-change. Sign in as `owner` with that passphrase and it makes you pick
+a real password before it will do anything else. That's deliberate: the
+shipped passphrase is in a public repo.
+
+**Adding someone.** Admin center → Admin accounts → username, role, and a
+starting password (there's a **Suggest one** button — four words beats a
+short scramble, and you can read it down the phone). They're forced to
+change it on first sign-in. **Reset password** hands out a new temporary
+one and kicks every device that account is signed in on. **Switch off**
+keeps the account and its history but blocks sign-in; **Delete** removes it.
+You can't delete, switch off, or demote the last master, or the account
+you're currently using.
+
+**How sign-in works.** Username and password are traded for a random
+session token; the password is never stored anywhere and the token is all
+the browser keeps. "Stay signed in" puts it in `localStorage` for 30 days,
+otherwise it dies with the tab. Changing a password invalidates that
+account's other sessions.
+
+Passwords are salted and stretched with 6,000 rounds of HMAC-SHA256 —
+Apps Script has no PBKDF2, so `hashPassword_()` iterates it by hand.
+Session tokens are stored as their SHA-256, so a leaked Sheet doesn't hand
+over live sign-ins. Six wrong guesses locks an account for 15 minutes, and
+a wrong username and a wrong password give the same message and the same
+delay, so the form can't be used to find out who has an account.
+
+> **Where this stops.** The `/exec` endpoint is public by design, and
+> anyone with edit access to the Spreadsheet can add themselves an account
+> whatever the app does. Rounds are capped by what Apps Script can do
+> before sign-in feels broken. This is solid auth for a small crew, not
+> something to stake real money on.
+
 ## Admin center
 
 **Settings** in the job board's top bar. Three things live there, and all
@@ -272,9 +320,23 @@ Whether an alert has expired is decided by the backend, not the browser, so
 a phone with a wrong clock can't keep a stale notice on screen.
 
 **Business info.** Name, phone, email, service area, tagline, hours, trust
-points. **Prices.** Each service's base price, the driveway size
-multipliers, and the season monthly factor — these change what customers
-are quoted, so saving reads the changes back to you first and asks.
+points.
+
+**Services and prices.** Uncheck a service to take it off the reservation
+form, reorder them with the arrows, and change the name, the description,
+or the base price. Also the driveway size multipliers and the season
+monthly factor. Anything that moves a quote — or takes a service off the
+form — is read back to you in a confirm before it saves.
+
+Switching a service off also deselects it for anyone who had it picked, so
+it can't keep adding to an estimate for a service you no longer offer. It
+stays in `config.js` though, so a reservation taken back when you did offer
+it still shows the real name instead of a bare id.
+
+What the admin center can't do is invent a *new* service. Each one owns an
+icon, and the icons are an SVG sprite baked into the page — a new entry
+needs a `config.js` line and an icon in the sprite. Say the word and I'll
+add an icon picker so new services can be made here too.
 
 ### Overrides, not replacements
 
@@ -318,14 +380,12 @@ says so, with a **Preview with sample data** button — three fake reservations,
 a loud banner, and nothing that saves. Enough to show someone what it does
 before any of it is real.
 
-Once it's wired up, the passphrase is currently **`snowadmin1`** for testing —
-and since `Code.gs` is public, treat it as public. [The setup doc](apps_script/README_SETUP.md) covers moving it to
-a Script Property, which stays in the Google account and never touches the
-repo; do that before real customer data lands in the Sheet.
+Once it's wired up, sign-in is a username and password against a real
+account — see [Admin accounts](#admin-accounts). `ADMIN_PASSPHRASE` only
+bootstraps the first master; leave it empty and there's nothing to sign in
+as and the admin endpoints stay shut.
 
-Same Sheet, staff side. Requires the `gsheet` delivery mode and an
-`ADMIN_PASSPHRASE` set in `Code.gs` — leave it empty and the admin endpoints
-are switched off entirely.
+Same Sheet, staff side. Requires the `gsheet` delivery mode.
 
 - Requests newest first, filtered by status, with counts on each filter.
   **Open** (anything not Done or Declined) is the default view.
@@ -336,23 +396,22 @@ are switched off entirely.
 - Everything a driver needs on the card: gate, dog, no salt, where the snow
   goes, and what the customer wrote.
 
-The passphrase is typed, not embedded — it's held in this browser and checked
-by Apps Script on every request. Wrong guesses get a delay. On the server side
-it lives in a Script Property, so it exists only inside the Google account and
-never in this repo.
+Nothing is embedded in the page. A password is typed, exchanged for a
+session token, and never stored; Apps Script checks the token on every
+request. Wrong guesses are delayed and then locked out.
 
 ### Locking down the admin page
 
-Be honest about what that passphrase is: **anyone with the `/exec` URL and
-the passphrase can read every customer's name, address, and phone number.**
-There's no rate limiting beyond the delay and no audit trail. For a
+Be honest about the ceiling: **anyone with the `/exec` URL and a working
+account can read every customer's name, address, and phone number.** Six
+wrong guesses buys a 15-minute lockout, but there's no audit trail. For a
 one-truck operation that's a reasonable trade; know that you're making it.
 
 Stronger, still free: make a **second Apps Script project** bound to the same
 Sheet holding only the admin actions, and deploy that one with **Access: only
 myself** or **anyone within your organization**. Google's own login becomes
 the gate, and the public form keeps its own anonymous deployment. Point
-`admin.js` at that second URL and drop the passphrase entirely.
+`admin.js` at that second URL and drop the account system entirely.
 
 Simplest of all, if he doesn't need a dashboard: skip `board/` and just
 share the Sheet.

@@ -110,10 +110,22 @@ function card({ ico, t, d, p, sel, multi, onClick }) {
   return b;
 }
 
+/* Services the admin center has switched off aren't offered. Lookups
+   elsewhere still search the full list, so a reservation taken before a
+   service was retired still shows its real name. */
+const liveServices = () => CFG.services.filter((s) => !s.hidden);
+
 function renderServices() {
   const host = $("serviceList");
   host.innerHTML = "";
+
+  // A service switched off while someone had it selected shouldn't keep
+  // adding to their estimate.
   CFG.services.forEach((s) => {
+    if (s.hidden) state.services.delete(s.id);
+  });
+
+  liveServices().forEach((s) => {
     host.appendChild(card({
       ico: s.icon,
       t: s.label,

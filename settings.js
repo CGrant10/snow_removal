@@ -38,17 +38,40 @@ const DEFAULTS = (() => {
   const CFG = window.SNOW_CONFIG;
   return {
     business: { ...CFG.business, trust: [...(CFG.business.trust || [])] },
-    prices: Object.fromEntries((CFG.services || []).map((s) => [s.id, s.base])),
+    services: (CFG.services || []).map((s) => ({
+      id: s.id, label: s.label, blurb: s.blurb, base: s.base,
+    })),
+    order: (CFG.services || []).map((s) => s.id),
     sizes: Object.fromEntries((CFG.drivewaySizes || []).map((s) => [s.id, s.mult])),
     seasonMonthlyFactor: CFG.seasonMonthlyFactor,
   };
 })();
 
+/** What config.js ships for one service field, for the admin center to
+    compare against — storing a value identical to the default would make
+    a row that can never fall back. */
+function defaultOf(id, part) {
+  const d = DEFAULTS.services.find((s) => s.id === id);
+  return d ? d[part] : undefined;
+}
+
 function restoreDefaults() {
   const CFG = window.SNOW_CONFIG;
   Object.assign(CFG.business, DEFAULTS.business);
   CFG.business.trust = [...DEFAULTS.business.trust];
-  (CFG.services || []).forEach((s) => (s.base = DEFAULTS.prices[s.id]));
+
+  DEFAULTS.services.forEach((d) => {
+    const s = (CFG.services || []).find((x) => x.id === d.id);
+    if (!s) return;
+    s.label = d.label;
+    s.blurb = d.blurb;
+    s.base = d.base;
+    s.hidden = false;
+  });
+  // Back to the order config.js declared them in.
+  (CFG.services || []).sort(
+    (a, b) => DEFAULTS.order.indexOf(a.id) - DEFAULTS.order.indexOf(b.id));
+
   (CFG.drivewaySizes || []).forEach((s) => (s.mult = DEFAULTS.sizes[s.id]));
   CFG.seasonMonthlyFactor = DEFAULTS.seasonMonthlyFactor;
 }
@@ -87,10 +110,35 @@ function applySettings(s) {
     b.trust = trust.split("|").map((t) => t.trim()).filter(Boolean);
   }
 
+  /* Services. config.js still decides which services *exist* — it owns
+     the icon, and the icons are an SVG sprite baked into the page. What
+     the Sheet controls is which of them a customer is shown, in what
+     order, under what wording, at what price. */
   (CFG.services || []).forEach((sv) => {
-    const v = num("price." + sv.id);
-    if (v !== null) sv.base = v;
+    const price = num("price." + sv.id);
+    if (price !== null) sv.base = price;
+
+    const label = text("svc." + sv.id + ".label");
+    if (label !== null) sv.label = label;
+
+    const blurb = text("svc." + sv.id + ".blurb");
+    if (blurb !== null) sv.blurb = blurb;
+
+    // Only an explicit "no" hides one, so a service added to config.js
+    // later shows up rather than defaulting to off.
+    sv.hidden = s["svc." + sv.id + ".on"] === "no";
   });
+
+  const order = text("svc.order");
+  if (order !== null) {
+    const wanted = order.split(",").map((t) => t.trim()).filter(Boolean);
+    // Anything not listed keeps its config.js position, after the rest.
+    const rank = (id) => {
+      const i = wanted.indexOf(id);
+      return i === -1 ? 1000 + DEFAULTS.order.indexOf(id) : i;
+    };
+    (CFG.services || []).sort((a, b) => rank(a.id) - rank(b.id));
+  }
 
   (CFG.drivewaySizes || []).forEach((sz) => {
     const v = num("size." + sz.id);

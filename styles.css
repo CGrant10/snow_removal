@@ -1146,3 +1146,58 @@ input[type="date"] { max-width: 240px; }
 
 .centerFoot { max-width: 620px; margin: 0 auto; }
 .centerFoot .btn { margin-top: 10px; }
+
+/* ---------------------------------------------------------- accounts */
+.acctList { margin-top: 12px; }
+.acctRow {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 8px 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.acctRow:last-child { border-bottom: none; }
+.acctRow.off { opacity: .55; }
+.acctWho { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.acctWho strong { font-size: 15px; }
+.acctActs { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.linkBtn {
+  padding: 4px 2px;
+  border: none; background: none;
+  color: var(--accent);
+  font: inherit; font-size: 13.5px; font-weight: 600;
+  cursor: pointer;
+}
+.linkBtn:hover { text-decoration: underline; }
+.linkBtn.danger { color: var(--err); }
+.linkBtn:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+
+/* ---------------------------------------------------- services editor */
+.svcRow {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.svcRow:last-child { border-bottom: none; }
+.svcRow.off .svcFields { opacity: .45; }
+
+.svcHead {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+/* The whole head row is the checkbox label, so it shouldn't look like a card. */
+.svcHead .check {
+  flex: 1; min-width: 0;
+  padding: 0; border: none; background: none;
+}
+.svcHead .check:hover { border-color: transparent; }
+.svcName { font-size: 15px; font-weight: 650; }
+
+.svcMove { display: flex; gap: 4px; flex: none; }
+.svcMove .linkBtn { font-size: 17px; line-height: 1; padding: 4px 8px; }
+
+.svcFields {
+  display: grid; gap: 0 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-top: 2px;
+}
+.svcFields .field { grid-column: 1 / -1; }
+.svcFields .field.narrow { grid-column: auto; }
