@@ -25,13 +25,11 @@ var SETTINGS = {
   ADMINS_SHEET: 'Admins',
   SESSIONS_SHEET: 'Sessions',
 
-  // Password stretching. Apps Script has no PBKDF2, so hashPassword_()
-  // iterates HMAC-SHA256 this many times. Every extra round costs the
-  // person signing in real milliseconds — this is roughly a second on a
-  // cold script, which is about the most you can spend before sign-in
-  // feels broken. Stored per account, so raising it later doesn't
-  // invalidate existing passwords.
-  PBKDF2_ROUNDS: 6000,
+  // Least stretching this script will accept from a browser. The rounds
+  // are done in the browser with WebCrypto, not here — see the note above
+  // proofHash_() for why — so this is only a floor to stop a hand-rolled
+  // client registering a barely-stretched password.
+  MIN_ROUNDS: 50000,
 
   // Sign-in throttling. Six wrong guesses parks the account for a while.
   MAX_FAILED: 6,
@@ -304,7 +302,8 @@ function doPost(e) {
       });
     }
 
-    // ---- signing in: the only admin action without a token ----
+    // ---- signing in: the only admin actions without a token ----
+    if (p.action === 'authSalt') return handleAuthSalt(p);
     if (p.action === 'signIn') return handleSignIn(p);
 
     // ---- everything else admin-side runs on a session token ----
@@ -507,20 +506,43 @@ function sha256_(text) {
 }
 
 /**
- * Stretch a password into a hash.
+ * The stretching happens in the BROWSER, not here.
  *
- * PBKDF2 in spirit: seed an HMAC with the salt, then re-key it against the
- * password over and over so checking a guess costs the attacker the same
- * as it costs us. A single SHA-256 of the password would be worth almost
- * nothing here — snow crews pick short passwords, and a plain digest is
- * millions of guesses a second on any GPU.
+ * This script used to iterate HMAC-SHA256 a few thousand times to slow
+ * down offline guessing. That was a mistake: each Utilities call is a
+ * round trip to a Java service, not local arithmetic, so a few thousand
+ * of them ran for long enough to hit "Exceeded maximum execution time"
+ * and no one could sign in at all.
+ *
+ * So the browser does PBKDF2 with WebCrypto — 200,000 rounds costs a
+ * phone about a tenth of a second — and sends the derived key as a
+ * "proof". This function is all the server does with it: one digest,
+ * a couple of milliseconds.
+ *
+ * The proof is password-equivalent in flight, which is fine over HTTPS,
+ * and it is never what gets stored — the digest is. So a leaked Sheet
+ * still yields nothing you can sign in with, and the stretching is now
+ * far heavier than anything Apps Script could have afforded.
  */
-function hashPassword_(password, salt, rounds) {
-  var bytes = Utilities.computeHmacSha256Signature(salt, password);
-  for (var i = 1; i < rounds; i++) {
-    bytes = Utilities.computeHmacSha256Signature(bytes, password);
+function proofHash_(proof) {
+  return sha256_(String(proof || ''));
+}
+
+/**
+ * A stable, unguessable salt for a username that has no account, so the
+ * salt lookup can't be used to find out who does. Same username always
+ * gets the same answer; nobody can predict it without the script secret.
+ */
+function decoySalt_(username) {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty('SALT_SECRET');
+  if (!secret) {
+    secret = randomToken_();
+    props.setProperty('SALT_SECRET', secret);
   }
-  return Utilities.base64Encode(bytes);
+  return Utilities.base64Encode(
+      Utilities.computeHmacSha256Signature(
+          String(username).toLowerCase(), secret));
 }
 
 /** Compare without leaking where two strings first differ. */
@@ -548,7 +570,7 @@ function readAdmins_() {
       role: String(values[i][1] || 'admin'),
       salt: String(values[i][2] || ''),
       hash: String(values[i][3] || ''),
-      rounds: Number(values[i][4]) || SETTINGS.PBKDF2_ROUNDS,
+      rounds: Number(values[i][4]) || SETTINGS.MIN_ROUNDS,
       mustChange: String(values[i][5]) === 'yes',
       active: String(values[i][6]) !== 'no',
       created: values[i][7],
@@ -585,26 +607,66 @@ function writeAdmin_(a) {
   ]]);
 }
 
-function appendAdmin_(username, password, role) {
-  var salt = randomToken_();
-  var rounds = SETTINGS.PBKDF2_ROUNDS;
+/** A row with no salt/hash yet: it can only be signed into with
+    ADMIN_PASSPHRASE, and only to set a real password. */
+var isBootstrap_ = function (a) { return !a.salt || !a.hash; };
+
+function appendAdmin_(username, role, secret) {
   adminsSheet_().appendRow([
-    username, role, salt, hashPassword_(password, salt, rounds), rounds,
+    username, role,
+    secret ? secret.salt : '',
+    secret ? proofHash_(secret.proof) : '',
+    secret ? secret.rounds : '',
     'yes',                       // every new account changes its password
     'yes', new Date(), '', 0, '',
   ]);
 }
 
+/** Validate and store a browser-derived credential. */
+function setSecret_(admin, p) {
+  var salt = String(p.salt || '');
+  var proof = String(p.proof || '');
+  var rounds = Number(p.rounds) || 0;
+
+  if (salt.length < 16) return 'bad salt';
+  if (proof.length < 16) return 'bad proof';
+  if (rounds < SETTINGS.MIN_ROUNDS) {
+    return 'needs at least ' + SETTINGS.MIN_ROUNDS + ' rounds';
+  }
+
+  admin.salt = salt;
+  admin.hash = proofHash_(proof);
+  admin.rounds = rounds;
+  return null;
+}
+
 /**
- * First run: turn ADMIN_PASSPHRASE into the master account so there is
- * never a moment where the board exists with nobody able to sign in.
- * Flagged must-change, because that value is sitting in a public repo.
+ * First run: create the master account so there is never a moment where
+ * the board exists with nobody able to sign in.
+ *
+ * It starts with no password of its own — signing in uses
+ * ADMIN_PASSPHRASE, and the only thing that gets you is the
+ * set-a-password screen. That value is sitting in a public repo, so it
+ * is a key to the front door and nothing else.
  */
 function ensureMaster_() {
   if (readAdmins_().length) return;
-  var pass = setting('ADMIN_PASSPHRASE');
-  if (!pass) return;
-  appendAdmin_('owner', pass, 'master');
+  if (!setting('ADMIN_PASSPHRASE')) return;
+  appendAdmin_('owner', 'master', null);
+}
+
+/**
+ * Escape hatch. Run from the Apps Script editor if you're locked out:
+ * clears every account and session, and the next request recreates
+ * `owner` against ADMIN_PASSPHRASE. Reservations are untouched.
+ */
+function resetAccounts() {
+  [adminsSheet_(), sessionsSheet_()].forEach(function (sh) {
+    var rows = sh.getLastRow() - 1;
+    if (rows > 0) sh.deleteRows(2, rows);
+  });
+  SpreadsheetApp.getUi().alert(
+      'Accounts cleared. Sign in as "owner" with ADMIN_PASSPHRASE.');
 }
 
 /* ---------------------------------------------------------- sessions */
@@ -622,26 +684,47 @@ function createSession_(username, remember) {
   return { token: token, expires: expires.toISOString(), remember: !!remember };
 }
 
-/** Drop expired rows. Cheap, and keeps the tab from growing forever. */
-function purgeSessions_() {
+/**
+ * Rewrite the Sessions tab keeping only the rows `keep` approves of.
+ *
+ * One clear plus one setValues, rather than a deleteRow per victim.
+ * Deleting rows one at a time is a separate spreadsheet operation each
+ * time and gets slow enough to matter on a tab that sees a write on
+ * every sign-in.
+ */
+function filterSessions_(keep) {
   var sh = sessionsSheet_();
   var values = sh.getDataRange().getValues();
-  var now = Date.now();
-  for (var i = values.length - 1; i >= 1; i--) {
-    var exp = values[i][3] ? new Date(values[i][3]).getTime() : 0;
-    if (!values[i][0] || (exp && exp <= now)) sh.deleteRow(i + 1);
+  if (values.length < 2) return;
+
+  var kept = [];
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] && keep(values[i])) kept.push(values[i]);
+  }
+  if (kept.length === values.length - 1) return;      // nothing to do
+
+  sh.getRange(2, 1, values.length - 1, SESSION_COLUMNS.length).clearContent();
+  if (kept.length) {
+    sh.getRange(2, 1, kept.length, SESSION_COLUMNS.length).setValues(kept);
   }
 }
 
+/** Drop expired rows, so the tab can't grow forever. */
+function purgeSessions_() {
+  var now = Date.now();
+  filterSessions_(function (row) {
+    var exp = row[3] ? new Date(row[3]).getTime() : 0;
+    return !exp || exp > now;
+  });
+}
+
 function deleteSessionsFor_(username, tokenHash) {
-  var sh = sessionsSheet_();
-  var values = sh.getDataRange().getValues();
-  for (var i = values.length - 1; i >= 1; i--) {
-    var matchUser = username &&
-        String(values[i][1]).toLowerCase() === String(username).toLowerCase();
-    var matchTok = tokenHash && String(values[i][0]) === tokenHash;
-    if (matchUser || matchTok) sh.deleteRow(i + 1);
-  }
+  var user = username ? String(username).toLowerCase() : null;
+  filterSessions_(function (row) {
+    if (user && String(row[1]).toLowerCase() === user) return false;
+    if (tokenHash && String(row[0]) === tokenHash) return false;
+    return true;
+  });
 }
 
 /** The account behind a token, or null. Also refreshes "last seen". */
@@ -669,12 +752,41 @@ function authFromToken_(token) {
 
 /* ---------------------------------------------------------- actions */
 
+/**
+ * Step one of signing in: hand back the salt and round count so the
+ * browser can derive the same proof it derived when the password was set.
+ *
+ * Deliberately answers for usernames that don't exist too, with a stable
+ * made-up salt, so this can't be used to enumerate accounts.
+ */
+function handleAuthSalt(p) {
+  ensureMaster_();
+
+  var username = String(p.username || '').trim();
+  if (!username) return json({ ok: false, error: 'no username' });
+
+  var admin = findAdmin_(username);
+  if (admin && admin.active && isBootstrap_(admin)) {
+    // No password set yet — the passphrase goes straight up instead.
+    return json({ ok: true, bootstrap: true });
+  }
+  if (!admin || !admin.active) {
+    return json({
+      ok: true,
+      salt: decoySalt_(username),
+      rounds: SETTINGS.MIN_ROUNDS,
+    });
+  }
+  return json({ ok: true, salt: admin.salt, rounds: admin.rounds });
+}
+
 function handleSignIn(p) {
   ensureMaster_();
 
   var username = String(p.username || '').trim();
-  var password = String(p.password || '');
-  if (!username || !password) {
+  var proof = String(p.proof || '');
+  var password = String(p.password || '');   // bootstrap only
+  if (!username || (!proof && !password)) {
     return json({ ok: false, error: 'username and password required' });
   }
 
@@ -692,7 +804,11 @@ function handleSignIn(p) {
     return json({ ok: false, error: 'too many tries — locked for ' + mins + ' min' });
   }
 
-  if (!safeEqual_(hashPassword_(password, admin.salt, admin.rounds), admin.hash)) {
+  var good = isBootstrap_(admin)
+      ? safeEqual_(password, setting('ADMIN_PASSPHRASE'))
+      : safeEqual_(proofHash_(proof), admin.hash);
+
+  if (!good) {
     admin.failed += 1;
     if (admin.failed >= SETTINGS.MAX_FAILED) {
       admin.lockedUntil = Date.now() + SETTINGS.LOCKOUT_MINUTES * 60000;
@@ -715,7 +831,9 @@ function handleSignIn(p) {
     expires: session.expires,
     username: admin.username,
     role: admin.role,
-    mustChange: admin.mustChange,
+    // A bootstrap account has no password of its own yet, so it always
+    // lands on the set-a-password screen.
+    mustChange: admin.mustChange || isBootstrap_(admin),
   });
 }
 
@@ -734,20 +852,24 @@ function handleSignOut(p) {
   return json({ ok: true });
 }
 
+/**
+ * The browser derives the proof for the current password (using the salt
+ * it was given at sign-in) and a fresh proof for the new one against a
+ * salt it generated. The server only ever sees derived keys.
+ */
 function handleChangePassword(p, admin) {
-  var next = String(p.newPassword || '');
-  if (next.length < 10) {
-    return json({ ok: false, error: 'use at least 10 characters' });
-  }
-  if (!safeEqual_(hashPassword_(String(p.currentPassword || ''),
-                                admin.salt, admin.rounds), admin.hash)) {
+  var ok = isBootstrap_(admin)
+      ? safeEqual_(String(p.currentPassword || ''), setting('ADMIN_PASSPHRASE'))
+      : safeEqual_(proofHash_(p.currentProof), admin.hash);
+
+  if (!ok) {
     Utilities.sleep(1200);
     return json({ ok: false, error: 'current password is wrong' });
   }
 
-  admin.salt = randomToken_();
-  admin.rounds = SETTINGS.PBKDF2_ROUNDS;
-  admin.hash = hashPassword_(next, admin.salt, admin.rounds);
+  var bad = setSecret_(admin, p);
+  if (bad) return json({ ok: false, error: bad });
+
   admin.mustChange = false;
   writeAdmin_(admin);
 
@@ -785,12 +907,14 @@ function handleCreateAdmin(p) {
   if (findAdmin_(username)) {
     return json({ ok: false, error: 'that username is taken' });
   }
-  if (String(p.password || '').length < 10) {
-    return json({ ok: false, error: 'temp password needs 10+ characters' });
-  }
+
+  // The master's browser derived this from the temp password it showed.
+  var pending = { salt: '', hash: '', rounds: 0 };
+  var bad = setSecret_(pending, p);
+  if (bad) return json({ ok: false, error: bad });
 
   var role = p.role === 'master' ? 'master' : 'admin';
-  appendAdmin_(username, String(p.password), role);
+  appendAdmin_(username, role, { salt: p.salt, proof: p.proof, rounds: p.rounds });
   return handleListAdmins();
 }
 
@@ -837,13 +961,10 @@ function handleSetAdminActive(p, me) {
 function handleResetAdminPassword(p) {
   var admin = findAdmin_(p.username);
   if (!admin) return json({ ok: false, error: 'no such account' });
-  if (String(p.password || '').length < 10) {
-    return json({ ok: false, error: 'temp password needs 10+ characters' });
-  }
 
-  admin.salt = randomToken_();
-  admin.rounds = SETTINGS.PBKDF2_ROUNDS;
-  admin.hash = hashPassword_(String(p.password), admin.salt, admin.rounds);
+  var bad = setSecret_(admin, p);
+  if (bad) return json({ ok: false, error: bad });
+
   admin.mustChange = true;
   admin.failed = 0;
   admin.lockedUntil = 0;

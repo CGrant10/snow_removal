@@ -56,7 +56,8 @@ Save (the disk icon, or Ctrl+S).
    warning is expected: the app is *yours*, and Google has no reason to have
    reviewed it.
 3. Switch back to the Sheet. You'll have a **Reservations** tab with a bold
-   header row, frozen panes, and a **Status** dropdown in column C.
+   header row, frozen panes, and a **Status** dropdown in column C, plus
+   empty **Settings**, **Admins**, and **Sessions** tabs.
 
 ## 4. Deploy it as a web app
 
@@ -135,19 +136,16 @@ Property always wins over the value in the file):
 3. Property `ADMIN_PASSPHRASE`, value your passphrase. **Save**.
 4. **Deploy → Manage deployments → pencil → New version → Deploy.**
 
-Then open `board/` and sign in. `NOTIFY_EMAIL`, `NOTIFY_SMS`, and
-`SHARED_SECRET` work the same way — a Script Property beats the constant in
-the file, so anything you'd rather not commit can go there too.
-
-Pick something long and don't reuse it. Three or four unrelated words beats a
-short scramble: `north-forty-plow-2026` is fine, `snow1` is not. Everyone who
-uses the board shares it, so changing it signs everybody out.
+`NOTIFY_EMAIL`, `NOTIFY_SMS`, and `SHARED_SECRET` work the same way — a
+Script Property beats the constant in the file, so anything you'd rather
+not commit can go there too.
 
 `ADMIN_PASSPHRASE` is no longer what the board checks — accounts are. It's
 now only the **bootstrap**: on the first request after you deploy, the
-script creates a master account called `owner` using it, flagged
-must-change. Sign in as `owner` with that value and you'll be made to
-choose a real password before anything else works.
+script creates a master account called `owner` with no password of its
+own. Sign in as `owner` with this value and the only thing it gets you is
+the set-a-password screen. Once a real password is set, the passphrase
+stops working entirely.
 
 > Because the shipped passphrase (`snowadmin1`) is in a public repo, do the
 > first sign-in yourself, right after deploying, before you hand the board
@@ -161,13 +159,31 @@ salt, password hash, round count, and the must-change / active flags.
 token rather than the token itself, so signing one phone out leaves the
 others alone. Expired rows are swept on every sign-in.
 
+A row with an empty Salt and Hash is a *bootstrap* account: it can only be
+signed into with `ADMIN_PASSPHRASE`, and only to set a real password.
+That's how `owner` starts out.
+
 You can edit the Admins tab by hand, with two caveats: never type a
 password into it (only hashes belong there — set passwords through the
 board), and deleting someone's row doesn't drop their Sessions rows, so use
 **Delete** in the admin center if you want them signed out immediately.
 
-Locked yourself out? Delete every row in **Admins** below the header. The
-next request recreates `owner` from `ADMIN_PASSPHRASE`.
+Locked yourself out? Run **`resetAccounts()`** from the Apps Script editor.
+It empties both tabs and the next request recreates `owner` from
+`ADMIN_PASSPHRASE`. Reservations aren't touched.
+
+### Why the password maths happens in the browser
+
+Apps Script can't afford it. Password stretching is meant to be slow, but
+every `Utilities.computeHmacSha256Signature` call is a round trip to a
+Java service rather than local arithmetic — a few thousand of them run
+long enough to hit **Exceeded maximum execution time**, which is exactly
+what happened to the first version of this.
+
+So the browser runs 200,000 rounds of PBKDF2 with WebCrypto (about 55ms on
+a phone) and sends the derived key. The script does one SHA-256 of it and
+compares — a couple of milliseconds. If you ever hand-roll a client, note
+that the script rejects anything claiming fewer than `MIN_ROUNDS`.
 
 ## The Settings tab
 

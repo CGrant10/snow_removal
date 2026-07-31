@@ -267,11 +267,12 @@ Real accounts, not one shared word. Two roles:
 The server enforces this. Hiding the Settings button from a plain admin is
 just manners — the actions behind it are refused by role regardless.
 
-**Getting started.** Run `setup()` and the script turns your existing
-`ADMIN_PASSPHRASE` into a master account called `owner`, flagged
-must-change. Sign in as `owner` with that passphrase and it makes you pick
-a real password before it will do anything else. That's deliberate: the
-shipped passphrase is in a public repo.
+**Getting started.** Run `setup()` and the script creates a master account
+called `owner` with no password of its own. Sign in as `owner` using
+`ADMIN_PASSPHRASE` and the only thing it gets you is the set-a-password
+screen — the shipped passphrase is a key to the front door and nothing
+else, which matters because it's sitting in a public repo. Once `owner`
+has a real password, that value stops working.
 
 **Adding someone.** Admin center → Admin accounts → username, role, and a
 starting password (there's a **Suggest one** button — four words beats a
@@ -288,18 +289,36 @@ the browser keeps. "Stay signed in" puts it in `localStorage` for 30 days,
 otherwise it dies with the tab. Changing a password invalidates that
 account's other sessions.
 
-Passwords are salted and stretched with 6,000 rounds of HMAC-SHA256 —
-Apps Script has no PBKDF2, so `hashPassword_()` iterates it by hand.
-Session tokens are stored as their SHA-256, so a leaked Sheet doesn't hand
-over live sign-ins. Six wrong guesses locks an account for 15 minutes, and
-a wrong username and a wrong password give the same message and the same
-delay, so the form can't be used to find out who has an account.
+**Where the stretching happens.** In the browser, not in Apps Script.
+Signing in is two steps: ask the script for the account's salt and round
+count, run 200,000 rounds of PBKDF2-SHA256 with WebCrypto locally, and
+send the derived key. The server does one SHA-256 of that and compares.
+
+That split isn't a shortcut, it's the only thing that works. The first
+version iterated HMAC-SHA256 inside Apps Script, and every `Utilities`
+call there is a round trip to a Java service rather than local
+arithmetic — a few thousand of them ran long enough to hit *Exceeded
+maximum execution time*, so nobody could sign in at all. WebCrypto does
+200,000 rounds on a phone in about 55ms. The stretching ended up far
+heavier than the script could ever have afforded.
+
+The derived key is password-equivalent in flight, which is fine over
+HTTPS, and it's never what gets stored — the digest is. A leaked Sheet
+yields nothing you can sign in with. Session tokens get the same
+treatment. The salt lookup answers for usernames that don't exist too,
+with a stable made-up salt, so it can't be used to enumerate accounts.
+
+Six wrong guesses locks an account for 15 minutes, and a wrong username
+and a wrong password give the same message after the same delay.
+
+**Locked out?** Run `resetAccounts()` from the Apps Script editor. It
+clears the Admins and Sessions tabs and the next request recreates `owner`
+against `ADMIN_PASSPHRASE`. Reservations aren't touched.
 
 > **Where this stops.** The `/exec` endpoint is public by design, and
 > anyone with edit access to the Spreadsheet can add themselves an account
-> whatever the app does. Rounds are capped by what Apps Script can do
-> before sign-in feels broken. This is solid auth for a small crew, not
-> something to stake real money on.
+> whatever the app does. There's no audit trail. This is solid auth for a
+> small crew, not something to stake real money on.
 
 ## Admin center
 

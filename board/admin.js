@@ -33,9 +33,62 @@ const connected = () =>
   /^https:\/\/script\.google\.com\//.test(CFG.delivery.gsheet.url || "");
 const isMaster = () => me.role === "master";
 
+/* ------------------------------------------------------------ crypto
+   Password stretching happens here, in the browser, not in Apps Script.
+
+   The first cut had the script iterate HMAC-SHA256 a few thousand times.
+   That doesn't work: every Utilities call is a round trip to a Java
+   service rather than local arithmetic, so it ran long enough to hit
+   "Exceeded maximum execution time" and nobody could sign in.
+
+   WebCrypto does 200,000 PBKDF2 rounds on a phone in about a tenth of a
+   second. What goes over the wire is the derived key; the server stores
+   only a digest of it. So the stretching is far heavier than the script
+   could ever have afforded, and a leaked Sheet still yields nothing you
+   can sign in with.                                                     */
+const PBKDF2_ROUNDS = 200_000;
+
+const b64 = (buf) =>
+  btoa(String.fromCharCode(...new Uint8Array(buf)));
+
+function freshSalt() {
+  return b64(crypto.getRandomValues(new Uint8Array(24)));
+}
+
+async function derive(password, salt, rounds) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: enc.encode(salt), iterations: rounds, hash: "SHA-256" },
+    key, 256);
+  return b64(bits);
+}
+
+/** Everything needed to store a brand-new password. */
+async function newSecret(password) {
+  const salt = freshSalt();
+  return { salt, rounds: PBKDF2_ROUNDS, proof: await derive(password, salt, PBKDF2_ROUNDS) };
+}
+
 /* ------------------------------------------------------------ api */
 /** Raised when the server says the token is no longer good for anything. */
 class SignedOut extends Error {}
+
+/** POST without a token, for the two steps of signing in. */
+async function callAnon(action, extra) {
+  if (!connected()) throw new Error("not connected");
+  const res = await fetch(CFG.delivery.gsheet.url, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, ...extra }),
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "rejected");
+  return data;
+}
 
 async function call(action, extra) {
   if (!connected()) throw new Error("not connected");
@@ -179,10 +232,18 @@ async function savePassword() {
   btn.disabled = true;
   btn.textContent = "Saving…";
   try {
+    // Prove the current password the same way signing in does. Asking for
+    // the salt again rather than remembering it keeps this working after
+    // a session was restored from a token, where there was no sign-in.
+    const challenge = await callAnon("authSalt", { username: me.username });
+    const proof = challenge.bootstrap
+      ? { currentPassword: current }
+      : { currentProof: await derive(current, challenge.salt, challenge.rounds) };
+
     // Changing the password kills every other session, so the server
     // hands back a fresh token for this device.
     const data = await call("changePassword", {
-      currentPassword: current, newPassword: next,
+      ...proof, ...(await newSecret(next)),
     });
     rememberToken(data.token, true);
     me.mustChange = false;
@@ -261,21 +322,19 @@ async function signIn() {
   btn.textContent = "Checking…";
 
   try {
-    // signIn is the one admin action that runs without a token, so it
-    // goes out directly rather than through call().
-    const res = await fetch(CFG.delivery.gsheet.url, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "signIn", username, password,
-        remember: $("remember").checked,
-      }),
-      redirect: "follow",
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status);
+    // Two steps: ask for this account's salt, derive the proof locally,
+    // then send the proof. The password itself never leaves the browser
+    // — except on a bootstrap account, which has no salt yet and is
+    // checked against ADMIN_PASSPHRASE.
+    const challenge = await callAnon("authSalt", { username });
 
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || "rejected");
+    const credential = challenge.bootstrap
+      ? { password }
+      : { proof: await derive(password, challenge.salt, challenge.rounds) };
+
+    const data = await callAnon("signIn", {
+      username, ...credential, remember: $("remember").checked,
+    });
 
     rememberToken(data.token, $("remember").checked);
     me = {
@@ -711,7 +770,10 @@ async function createAdmin() {
   btn.disabled = true;
   btn.textContent = "Adding…";
   try {
-    renderAdmins((await call("createAdmin", { username, password, role })).admins);
+    // Derived here — the temp password itself is never sent.
+    renderAdmins((await call("createAdmin", {
+      username, role, ...(await newSecret(password)),
+    })).admins);
     $("acctUser").value = "";
     $("acctPass").value = "";
     $("acctPass").type = "password";
@@ -757,7 +819,9 @@ async function resetAdmin(username) {
     return fail($("acctErr"), "Temp password needs 10+ characters.");
   }
   try {
-    renderAdmins((await call("resetAdminPassword", { username, password })).admins);
+    renderAdmins((await call("resetAdminPassword", {
+      username, ...(await newSecret(password)),
+    })).admins);
     toast(`${username}: temp password set`);
   } catch (e) {
     if (!(e instanceof SignedOut)) fail($("acctErr"), e.message);
