@@ -27,7 +27,8 @@ reserve/        the reservation form (public)
 board/          the job board (staff)
   index.html  admin.js  manifest.webmanifest  sw.js
 styles.css      both surfaces, light/dark
-config.js       ← everything you'd want to change lives here
+config.js       ← the shipped defaults; the admin center overrides these
+settings.js     live settings + the customer alert, shared by both apps
 updater.js      version checking, install button, update flow
 sw-core.js      service worker logic; each folder's sw.js imports it
 version.txt     what the running app polls to notice a new build
@@ -251,6 +252,49 @@ Two things that trip everyone up once, both covered in the setup doc:
 deploying with **Access: Anyone** (required — it lets the script be *called*,
 it does not make the Sheet public), and remembering that editing `Code.gs`
 does nothing until you deploy a **new version**.
+
+## Admin center
+
+**Settings** in the job board's top bar. Three things live there, and all
+of them write to a `Settings` tab in the same Google Sheet — key/value
+rows you can also read or fix by hand in the Sheet itself.
+
+**Customer alert.** Write a message, pick a tone (info / warning / urgent)
+and when it should come down — end of today, 24 hours, 3 days, a week, or
+a custom date and time. It appears across the top of the reservation form.
+Dismissing it hides it for that session and it comes back the next time the
+app is opened, which is the point: someone who closed it this morning still
+sees the storm notice tonight. Publishing a new alert gets a new id, so it
+shows even for someone who dismissed the previous one. **Take it down**
+clears it early.
+
+Whether an alert has expired is decided by the backend, not the browser, so
+a phone with a wrong clock can't keep a stale notice on screen.
+
+**Business info.** Name, phone, email, service area, tagline, hours, trust
+points. **Prices.** Each service's base price, the driveway size
+multipliers, and the season monthly factor — these change what customers
+are quoted, so saving reads the changes back to you first and asks.
+
+### Overrides, not replacements
+
+`config.js` still ships every default and still defines the *shape* of
+things — which services exist, what the steps are. The Sheet only holds a
+thin layer of overrides on top. Anything not overridden falls through, so
+the apps work fully with an empty `Settings` tab, no backend, or no signal.
+
+Clearing a field in the admin center deletes that row and the shipped value
+comes back. **Reset everything to config.js** clears them all at once.
+
+Loading is two-stage so nothing flashes: `settings.js` applies the cached
+copy synchronously before first paint, then refreshes from the network and
+re-renders only if something moved. Offline, the last known values stand.
+
+> **Changing `Code.gs` means redeploying.** Editing the script does nothing
+> to the live app until you go to **Deploy → Manage deployments → edit →
+> Version: New version**. Until then the `/exec` URL keeps running the old
+> code, the admin center's saves fail, and the form quietly falls back to
+> `config.js`. Run `setup()` once afterwards to create the `Settings` tab.
 
 ## The job board (`board/`)
 

@@ -17,6 +17,10 @@ var SETTINGS = {
   // Tab the rows land on. setup() creates it.
   SHEET_NAME: 'Reservations',
 
+  // Tab holding the live settings and the customer alert. Key/value, one
+  // row each, so you can read or fix it straight in the Sheet.
+  SETTINGS_SHEET: 'Settings',
+
   // Where the "new reservation" email goes. Leave '' for no email.
   NOTIFY_EMAIL: 'grantcole7@gmail.com',
 
@@ -115,9 +119,108 @@ function setup() {
   sheet.getRange(2, 3, sheet.getMaxRows() - 1, 1).setDataValidation(rule);
 
   sheet.autoResizeColumns(1, COLUMNS.length);
+
+  settingsSheet_();          // create the Settings tab too, if it's missing
+
   SpreadsheetApp.getUi().alert(
       'Ready. Now deploy: Deploy > New deployment > Web app, ' +
       'Execute as ME, Access ANYONE.');
+}
+
+/* ============================== SETTINGS TAB ==========================
+   Flat key/value rows. An empty Settings tab means "use whatever is in
+   config.js" — the app treats every key as an override, so anything not
+   listed here simply falls through to the shipped default.
+
+   Keys the app understands:
+     biz.name  biz.phone  biz.email  biz.serviceArea  biz.tagline
+     biz.hours     biz.trust          pipe-separated list
+     price.<serviceId>                base price, e.g. price.driveway
+     size.<sizeId>                    driveway multiplier, e.g. size.2car
+     seasonMonthlyFactor
+     alert.id  alert.message  alert.tone  alert.until   (ISO 8601)
+   ====================================================================== */
+
+function settingsSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SETTINGS.SETTINGS_SHEET);
+  if (!sh) {
+    sh = ss.insertSheet(SETTINGS.SETTINGS_SHEET);
+    sh.getRange(1, 1, 1, 2)
+      .setValues([['Key', 'Value']])
+      .setFontWeight('bold')
+      .setBackground('#10233f')
+      .setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 200);
+    sh.setColumnWidth(2, 520);
+  }
+  return sh;
+}
+
+/** Every stored key as a flat map of strings. */
+function readSettings_() {
+  var values = settingsSheet_().getDataRange().getValues();
+  var out = {};
+  for (var i = 1; i < values.length; i++) {
+    var key = String(values[i][0] || '').trim();
+    if (!key) continue;
+    var v = values[i][1];
+    out[key] = (v instanceof Date) ? v.toISOString() : String(v);
+  }
+  return out;
+}
+
+/** Merge a patch over what's stored and rewrite the tab. Empty string
+    deletes a key, which is how "back to the config.js default" works. */
+function writeSettings_(patch) {
+  var sh = settingsSheet_();
+  var merged = readSettings_();
+
+  Object.keys(patch || {}).forEach(function (k) {
+    var v = patch[k];
+    if (v === null || v === undefined || String(v) === '') delete merged[k];
+    else merged[k] = String(v);
+  });
+
+  var keys = Object.keys(merged).sort();
+  var rows = Math.max(sh.getMaxRows() - 1, 1);
+  sh.getRange(2, 1, rows, 2).clearContent();
+  if (keys.length) {
+    sh.getRange(2, 1, keys.length, 2).setValues(keys.map(function (k) {
+      return [k, merged[k]];
+    }));
+  }
+  return merged;
+}
+
+/** The alert, but only while it's inside its window. Expiry is decided
+    here rather than in the browser, so a wrong clock on a customer's
+    phone can't keep a stale storm notice on screen. */
+function activeAlert_(s) {
+  if (!s['alert.message']) return null;
+
+  var until = s['alert.until'];
+  if (until) {
+    var end = new Date(until).getTime();
+    if (!isNaN(end) && end <= Date.now()) return null;
+  }
+
+  return {
+    id: s['alert.id'] || '',
+    message: s['alert.message'],
+    tone: s['alert.tone'] || 'info',
+    until: until || '',
+  };
+}
+
+/** Settings minus the alert keys, which travel separately. */
+function publicSettings_(s) {
+  var out = {};
+  Object.keys(s).forEach(function (k) {
+    if (k.indexOf('alert.') !== 0) out[k] = s[k];
+  });
+  return out;
 }
 
 /* ============================== ENDPOINT ============================== */
@@ -128,11 +231,17 @@ function doGet() {
 }
 
 /**
- * Everything posts here. Three actions:
+ * Everything posts here.
  *
- *   (none)   a customer submitting the public form. Anonymous by design.
- *   list     board/    loading the job board.       Passphrase required.
- *   update   board/    changing a status or note.   Passphrase required.
+ *   (none)         a customer submitting the public form. Anonymous.
+ *   settings       either app reading live settings + alert. Anonymous —
+ *                  the customer portal has no passphrase and still has to
+ *                  be able to read them.
+ *   list           board/ loading the job board.        Passphrase.
+ *   update         board/ changing a status or note.    Passphrase.
+ *   saveSettings   board/ changing business info/prices. Passphrase.
+ *   publishAlert   board/ putting a notice on the form.  Passphrase.
+ *   clearAlert     board/ taking it down early.          Passphrase.
  */
 function doPost(e) {
   // One writer at a time, so two people submitting at once cannot land on
@@ -151,8 +260,19 @@ function doPost(e) {
 
     var p = JSON.parse(e.postData.contents);
 
+    // ---- anonymous: both apps reading settings + the current alert ----
+    if (p.action === 'settings') {
+      var s = readSettings_();
+      return json({
+        ok: true,
+        settings: publicSettings_(s),
+        alert: activeAlert_(s),
+      });
+    }
+
     // ---- admin actions, behind the passphrase ----
-    if (p.action === 'list' || p.action === 'update') {
+    var ADMIN = ['list', 'update', 'saveSettings', 'publishAlert', 'clearAlert'];
+    if (ADMIN.indexOf(p.action) !== -1) {
       var adminPass = setting('ADMIN_PASSPHRASE');
       if (!adminPass) {
         return json({ ok: false, error: 'admin is switched off' });
@@ -163,7 +283,11 @@ function doPost(e) {
         Utilities.sleep(1200);
         return json({ ok: false, error: 'wrong passphrase' });
       }
-      return p.action === 'list' ? handleList(p) : handleUpdate(p);
+      if (p.action === 'list') return handleList(p);
+      if (p.action === 'update') return handleUpdate(p);
+      if (p.action === 'saveSettings') return handleSaveSettings(p);
+      if (p.action === 'publishAlert') return handlePublishAlert(p);
+      return handleClearAlert();
     }
 
     // ---- anonymous: a customer submitting the form ----
@@ -263,6 +387,76 @@ function handleUpdate(p) {
   }
 
   return json({ ok: false, error: 'reference not found' });
+}
+
+/* ========================= ADMIN CENTER ACTIONS ======================= */
+
+/** Business info and prices. Sends back the merged result so the board
+    can show exactly what's stored rather than what it hoped it wrote. */
+function handleSaveSettings(p) {
+  if (!p.settings || typeof p.settings !== 'object') {
+    return json({ ok: false, error: 'no settings' });
+  }
+
+  // Prices and multipliers have to be numbers. A typo here changes what a
+  // customer is quoted, so reject the whole save rather than store junk.
+  var bad = [];
+  Object.keys(p.settings).forEach(function (k) {
+    if (k.indexOf('price.') !== 0 && k.indexOf('size.') !== 0 &&
+        k !== 'seasonMonthlyFactor') return;
+    var v = String(p.settings[k]);
+    if (v === '') return;                     // empty = back to the default
+    if (isNaN(Number(v)) || Number(v) < 0) bad.push(k);
+  });
+  if (bad.length) {
+    return json({ ok: false, error: 'not a number: ' + bad.join(', ') });
+  }
+
+  var merged = writeSettings_(p.settings);
+  return json({ ok: true, settings: publicSettings_(merged) });
+}
+
+/** Put a notice on the customer form until `until` passes. */
+function handlePublishAlert(p) {
+  var message = String(p.message || '').trim();
+  if (!message) return json({ ok: false, error: 'no message' });
+  if (message.length > 400) {
+    return json({ ok: false, error: 'message is too long (400 max)' });
+  }
+
+  var until = String(p.until || '');
+  if (until) {
+    var end = new Date(until).getTime();
+    if (isNaN(end)) return json({ ok: false, error: 'bad end time' });
+    if (end <= Date.now()) {
+      return json({ ok: false, error: 'that end time is already past' });
+    }
+  }
+
+  var tone = ['info', 'warning', 'urgent'].indexOf(p.tone) === -1
+      ? 'info' : p.tone;
+
+  // A fresh id each time, so a phone that dismissed the last alert still
+  // shows this one.
+  var merged = writeSettings_({
+    'alert.id': String(Date.now()),
+    'alert.message': message,
+    'alert.tone': tone,
+    'alert.until': until,
+  });
+
+  return json({ ok: true, alert: activeAlert_(merged) });
+}
+
+/** Take the alert down now, without waiting for it to expire. */
+function handleClearAlert() {
+  writeSettings_({
+    'alert.id': '',
+    'alert.message': '',
+    'alert.tone': '',
+    'alert.until': '',
+  });
+  return json({ ok: true, alert: null });
 }
 
 /* ============================== HELPERS =============================== */

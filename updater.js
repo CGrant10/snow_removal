@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.7.1";
+const APP_VERSION = "1.8.0";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -97,6 +97,7 @@ const BUST = [
   "sw.js",
   "../styles.css",
   "../config.js",
+  "../settings.js",
   "../updater.js",
   "../sw-core.js",
 ];

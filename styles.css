@@ -18,6 +18,8 @@
   --ok:        #0f9d6a;
   --err:       #c2323f;
   --err-wash:  #fdeef0;
+  --warn:      #9a5b00;
+  --warn-wash: #fff4e0;
 
   /* deep navy used by the sidebar, the estimate card, and the mobile bar */
   --rail-from: #10233f;
@@ -52,6 +54,8 @@
     --ok:        #3ddc97;
     --err:       #ff8d8d;
     --err-wash:  #2a1620;
+    --warn:      #ffc46b;
+    --warn-wash: #2a2113;
 
     --rail-from: #0b1526;
     --rail-to:   #12233d;
@@ -1012,3 +1016,133 @@ input[type="date"] { max-width: 240px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   Customer alert bar.
+
+   A flex child of the body, above the header, so it displaces the
+   layout instead of floating over it — nothing to scroll under and
+   nothing for a thumb to land on by mistake.
+   ============================================================ */
+.alertBar {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: calc(11px + env(safe-area-inset-top)) 16px 11px;
+  background: var(--accent-wash);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  animation: rise .25s ease;
+}
+.alertBar p {
+  flex: 1;
+  font-size: 14.5px; line-height: 1.5; font-weight: 550;
+  -webkit-user-select: text; user-select: text;
+}
+.alertBar.warning { background: var(--warn-wash); border-bottom-color: var(--warn); }
+.alertBar.urgent  { background: var(--err-wash);  border-bottom-color: var(--err); }
+.alertBar.urgent p { color: var(--err); font-weight: 650; }
+
+.alertClose {
+  flex: none;
+  width: 30px; height: 30px;
+  margin: -3px -6px 0 0;
+  display: grid; place-items: center;
+  border: none; border-radius: 999px;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 22px; line-height: 1;
+  cursor: pointer;
+}
+.alertClose:hover { background: rgba(125,125,125,.15); color: var(--ink); }
+
+/* The alert bar eats vertical space the topbar was padding for. */
+.alertBar + .stickyTop .topbar { padding-top: 12px; }
+
+/* ============================================================
+   Admin center — a full-screen sheet over the job board.
+   ============================================================ */
+.center {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  animation: rise .2s ease;
+}
+
+.centerBar {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+  background: linear-gradient(135deg, var(--rail-from), var(--rail-to));
+  color: var(--rail-ink);
+}
+.centerBar h2 { font-size: 17px; font-weight: 650; }
+
+/* The only scrolling region in here, same rule as everywhere else. */
+.centerScroll {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 16px calc(28px + env(safe-area-inset-bottom));
+}
+
+.panel {
+  max-width: 620px; margin: 0 auto 16px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--sh-1);
+}
+.panel h3 { font-size: 16px; font-weight: 650; }
+.panel h4 {
+  margin: 20px 0 0; font-size: 13px; font-weight: 650;
+  color: var(--ink-2); letter-spacing: .01em;
+}
+.panel > .muted { margin-top: 5px; }
+.panel .warnNote { color: var(--warn); font-weight: 600; }
+
+.fieldLabel {
+  display: block; margin: 16px 0 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink-2);
+}
+
+.panel textarea,
+.panel .dtField {
+  width: 100%;
+  padding: 11px 13px;
+  font: inherit; font-size: 16px;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  resize: vertical;
+}
+.panel textarea:focus, .panel .dtField:focus {
+  outline: none; border-color: var(--accent); box-shadow: var(--ring);
+}
+.dtField { margin-top: 10px; }
+
+/* Prices sit two-up on anything wider than a phone. */
+.field.narrow { margin: 12px 0; }
+#priceFields, #sizeFields {
+  display: grid; gap: 0 14px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.liveAlert {
+  margin-top: 12px; padding: 11px 13px;
+  background: var(--accent-wash);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 14px; color: var(--ink-2);
+  -webkit-user-select: text; user-select: text;
+}
+
+.panelActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.panelActions .btn { margin-top: 0; }
+
+.centerFoot { max-width: 620px; margin: 0 auto; }
+.centerFoot .btn { margin-top: 10px; }

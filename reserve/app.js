@@ -24,7 +24,11 @@ const state = {
 };
 
 /* ------------------------------------------------------------ boot */
-function boot() {
+/* Everything the Sheet is allowed to change. Split out of boot() because
+   it runs twice: once from the cached settings settings.js applied before
+   this file loaded, and again if the network comes back with something
+   different. */
+function renderBusiness() {
   const b = CFG.business;
   const tel = "tel:" + b.phone.replace(/[^\d+]/g, "");
 
@@ -38,6 +42,10 @@ function boot() {
 
   $("trustList").innerHTML = (b.trust || [])
     .map((t) => `<li>${t}</li>`).join("");
+}
+
+function boot() {
+  renderBusiness();
 
   $("progress").innerHTML = Array.from({ length: STEPS }, () => "<i></i>").join("");
   $("stepper").innerHTML = STEP_NAMES
@@ -62,6 +70,24 @@ function boot() {
 
   wireInstall([$("installBtn"), $("installBtnSm")], $("iosHint"), $("iosHintClose"));
   show(0);
+
+  // Cached settings are already on screen. Go see if they moved, and put
+  // up the alert if the board published one. Prices can change here, so
+  // the estimate has to be recomputed, not just the header text.
+  renderAlert($("alertBar"));
+  refreshSettings().then((changed) => {
+    renderAlert($("alertBar"));
+    if (!changed) return;
+    renderBusiness();
+    renderServices();
+    renderSizes();
+    updateTotal();
+  });
+
+  // Coming back to a left-open tab is exactly when a storm notice matters.
+  window.addEventListener("focus", () => {
+    refreshSettings().then(() => renderAlert($("alertBar")));
+  });
 }
 
 /* Install, service worker registration, and the update flow all live in

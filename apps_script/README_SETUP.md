@@ -143,6 +143,38 @@ Pick something long and don't reuse it. Three or four unrelated words beats a
 short scramble: `north-forty-plow-2026` is fine, `snow1` is not. Everyone who
 uses the board shares it, so changing it signs everybody out.
 
+> **Do this before you use the admin center.** The passphrase in `Code.gs`
+> is `snowadmin1` and this repo is public, so right now anyone who finds the
+> board can sign in. That used to mean reading reservations. It now also
+> means editing your prices and publishing a message to every customer who
+> opens the form. Move it to a Script Property first.
+
+## The Settings tab
+
+`setup()` creates a second tab called **Settings**: two columns, `Key` and
+`Value`, one row per stored value. The admin center writes here, and you can
+read or fix any of it by hand.
+
+An empty tab means "use whatever `config.js` ships" — every row is an
+override, and deleting a row restores the shipped default.
+
+| Key | What it is |
+|---|---|
+| `biz.name` `biz.phone` `biz.email` | contact block shown on the form |
+| `biz.serviceArea` `biz.tagline` `biz.hours` | ditto |
+| `biz.trust` | the sidebar bullets, separated by ` \| ` |
+| `price.<serviceId>` | base price, e.g. `price.driveway` |
+| `size.<sizeId>` | driveway multiplier, e.g. `size.2car` |
+| `seasonMonthlyFactor` | season contract multiplier |
+| `alert.message` `alert.tone` `alert.until` `alert.id` | the customer alert |
+
+`alert.until` is an ISO 8601 timestamp. The script checks it on every read,
+so an expired alert stops being sent to the form whether or not anyone
+opens the board to clear it.
+
+Deleting the whole `Settings` tab is safe — it's recreated empty on the next
+request, and both apps fall back to `config.js`.
+
 **Know what this is.** Anyone with the `/exec` URL and that passphrase can
 read every customer's name, address, and phone number. Wrong guesses get a
 short delay, but there's no real rate limiting and no audit trail. For one

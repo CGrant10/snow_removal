@@ -98,6 +98,7 @@
       <button class="iconBtn" id="refreshBtn" title="Refresh">
         <svg class="rf"><use href="#i-refresh"></use></svg>
       </button>
+      <button class="callbtn" id="settingsBtn">Settings</button>
       <button class="callbtn" id="installBtnSm" hidden>Install</button>
       <button class="callbtn" id="signOut">Sign out</button>
     </div>
@@ -124,6 +125,100 @@
   </div>
 </div>
 
+<!-- ================================================ admin center -->
+<div class="center" id="adminCenter" hidden>
+  <header class="centerBar">
+    <h2>Admin center</h2>
+    <button class="callbtn" id="centerClose">Done</button>
+  </header>
+
+  <div class="centerScroll">
+
+    <!-- ---------------------------------------------- customer alert -->
+    <section class="panel">
+      <h3>Customer alert</h3>
+      <p class="muted sm">Shows across the top of the reservation form until
+        it expires. Someone can dismiss it, and it comes back the next time
+        they open the app.</p>
+
+      <p class="liveAlert" id="liveAlert" hidden></p>
+
+      <label class="field">
+        <span>Message</span>
+        <textarea id="alertMsg" rows="3" maxlength="400"
+                  placeholder="Heavy snow tonight — we'll be out by 5 AM."></textarea>
+      </label>
+
+      <span class="fieldLabel">Tone</span>
+      <div class="chips" id="alertTone">
+        <button type="button" class="chip sel" data-tone="info">Info</button>
+        <button type="button" class="chip" data-tone="warning">Warning</button>
+        <button type="button" class="chip" data-tone="urgent">Urgent</button>
+      </div>
+
+      <span class="fieldLabel">Show until</span>
+      <div class="chips" id="alertUntil">
+        <button type="button" class="chip" data-hours="today">End of today</button>
+        <button type="button" class="chip sel" data-hours="24">24 hours</button>
+        <button type="button" class="chip" data-hours="72">3 days</button>
+        <button type="button" class="chip" data-hours="168">1 week</button>
+        <button type="button" class="chip" data-hours="custom">Custom</button>
+      </div>
+      <input type="datetime-local" id="alertCustom" class="dtField" hidden>
+      <p class="muted sm" id="alertUntilNote"></p>
+
+      <div class="panelActions">
+        <button class="btn primary" id="alertPublish">Publish alert</button>
+        <button class="btn ghost" id="alertClear">Take it down</button>
+      </div>
+      <p class="err" id="alertErr" hidden></p>
+    </section>
+
+    <!-- ---------------------------------------------- business info -->
+    <section class="panel">
+      <h3>Business info</h3>
+      <p class="muted sm">What the reservation form shows. Leave a field
+        empty to fall back to whatever <code>config.js</code> ships.</p>
+
+      <label class="field"><span>Business name</span>
+        <input type="text" id="setName"></label>
+      <label class="field"><span>Phone</span>
+        <input type="tel" id="setPhone"></label>
+      <label class="field"><span>Email</span>
+        <input type="email" id="setEmail"></label>
+      <label class="field"><span>Service area</span>
+        <input type="text" id="setArea"></label>
+      <label class="field"><span>Tagline</span>
+        <input type="text" id="setTagline"></label>
+      <label class="field"><span>Hours</span>
+        <input type="text" id="setHours"></label>
+      <label class="field"><span>Trust points — one per line</span>
+        <textarea id="setTrust" rows="3"></textarea></label>
+    </section>
+
+    <!-- ---------------------------------------------- prices -->
+    <section class="panel">
+      <h3>Prices</h3>
+      <p class="muted sm warnNote">These change what customers are quoted.
+        Saving asks you to confirm.</p>
+
+      <div id="priceFields"></div>
+
+      <h4>Driveway size multipliers</h4>
+      <div id="sizeFields"></div>
+
+      <label class="field narrow"><span>Season monthly factor</span>
+        <input type="number" id="setSeason" step="0.1" min="0"></label>
+    </section>
+
+    <div class="centerFoot">
+      <button class="btn primary wide" id="settingsSave">Save changes</button>
+      <button class="btn ghost wide" id="settingsReset">Reset everything to config.js</button>
+      <p class="err" id="settingsErr" hidden></p>
+    </div>
+  </div>
+</div>
+
 <button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
 
 <!-- Shown when the browser gives us no install prompt of our own; the
@@ -136,6 +231,7 @@
 </div>
 
 <script src="../config.js"></script>
+<script src="../settings.js"></script>
 <script src="../updater.js"></script>
 <script src="admin.js"></script>
 </body>

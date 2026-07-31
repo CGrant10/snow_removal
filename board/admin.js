@@ -58,6 +58,7 @@ function boot() {
   wireUpdater([$("appVersion")], $("updatePill"));
   wireInstall([$("installBtn"), $("installBtnSm")], $("iosHint"), $("iosHintClose"));
   $("demoBtn").addEventListener("click", startDemo);
+  wireAdminCenter();
 
   // No Sheet wired up yet: say so plainly instead of failing on sign-in,
   // and offer the sample board so the thing can still be shown to someone.
@@ -375,6 +376,261 @@ function jobCard(r) {
   notes.addEventListener("change", () => push({ officeNotes: notes.value }));
 
   return el;
+}
+
+/* ==================================================================
+   Admin center — business info, prices, and the customer alert.
+
+   Reads through settings.js so the board and the form agree on what
+   "current" means, and writes through the passphrase-gated actions in
+   Code.gs. Everything stored is an override: clearing a field deletes
+   the row and the form goes back to the config.js default.
+   ================================================================== */
+
+let alertTone = "info";
+let alertHours = "24";
+
+function wireAdminCenter() {
+  $("settingsBtn").addEventListener("click", openAdminCenter);
+  $("centerClose").addEventListener("click", () => ($("adminCenter").hidden = true));
+
+  chipGroup($("alertTone"), (btn) => (alertTone = btn.dataset.tone));
+  chipGroup($("alertUntil"), (btn) => {
+    alertHours = btn.dataset.hours;
+    $("alertCustom").hidden = alertHours !== "custom";
+    showUntilNote();
+  });
+
+  $("alertCustom").addEventListener("change", showUntilNote);
+  $("alertPublish").addEventListener("click", publishAlert);
+  $("alertClear").addEventListener("click", clearAlert);
+  $("settingsSave").addEventListener("click", saveSettings);
+  $("settingsReset").addEventListener("click", resetSettings);
+}
+
+/** One-of-many chips: selecting one clears the rest. */
+function chipGroup(host, onPick) {
+  host.addEventListener("click", (e) => {
+    const btn = e.target.closest(".chip");
+    if (!btn) return;
+    [...host.querySelectorAll(".chip")].forEach((c) => c.classList.remove("sel"));
+    btn.classList.add("sel");
+    onPick(btn);
+  });
+}
+
+/** The chosen expiry as a Date, or null for "no end". */
+function untilDate() {
+  if (alertHours === "custom") {
+    const v = $("alertCustom").value;
+    return v ? new Date(v) : null;
+  }
+  if (alertHours === "today") {
+    const d = new Date();
+    d.setHours(23, 59, 0, 0);
+    return d;
+  }
+  return new Date(Date.now() + Number(alertHours) * 3600_000);
+}
+
+function showUntilNote() {
+  const d = untilDate();
+  $("alertUntilNote").textContent = d && !isNaN(d)
+    ? "Comes down " + d.toLocaleString([], {
+        weekday: "short", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : "Pick a date and time.";
+}
+
+async function openAdminCenter() {
+  $("adminCenter").hidden = false;
+  $("settingsErr").hidden = $("alertErr").hidden = true;
+
+  buildPriceFields();
+  await refreshSettings();          // newest values, not whatever's cached
+  fillSettingsForm();
+  showLiveAlert();
+  showUntilNote();
+}
+
+/** A row per service and per driveway size, straight off config.js, so
+    adding a service in config.js gets a price box here for free. */
+function buildPriceFields() {
+  $("priceFields").innerHTML = (CFG.services || []).map((s) => `
+    <label class="field narrow"><span>${s.label}${s.quoteOnly ? " (quoted on site)" : ""}</span>
+      <input type="number" min="0" step="1" data-price="${s.id}"></label>`).join("");
+
+  $("sizeFields").innerHTML = (CFG.drivewaySizes || []).map((s) => `
+    <label class="field narrow"><span>${s.label}</span>
+      <input type="number" min="0" step="0.1" data-size="${s.id}"></label>`).join("");
+}
+
+/** CFG already has the overrides folded in by settings.js, so reading
+    from it shows the effective value whether it's stored or shipped. */
+function fillSettingsForm() {
+  const b = CFG.business;
+  $("setName").value = b.name || "";
+  $("setPhone").value = b.phone || "";
+  $("setEmail").value = b.email || "";
+  $("setArea").value = b.serviceArea || "";
+  $("setTagline").value = b.tagline || "";
+  $("setHours").value = b.hours || "";
+  $("setTrust").value = (b.trust || []).join("\n");
+
+  (CFG.services || []).forEach((s) => {
+    const el = document.querySelector(`[data-price="${s.id}"]`);
+    if (el) el.value = s.base;
+  });
+  (CFG.drivewaySizes || []).forEach((s) => {
+    const el = document.querySelector(`[data-size="${s.id}"]`);
+    if (el) el.value = s.mult;
+  });
+  $("setSeason").value = CFG.seasonMonthlyFactor;
+}
+
+function showLiveAlert() {
+  const el = $("liveAlert");
+  const a = liveSettings.alert;
+  if (!a || !a.message) {
+    el.hidden = true;
+    return;
+  }
+  const ends = a.until ? new Date(a.until) : null;
+  el.hidden = false;
+  el.textContent = "Live now: “" + a.message + "”" +
+    (ends && !isNaN(ends) ? " — until " + ends.toLocaleString() : "");
+}
+
+async function publishAlert() {
+  const err = $("alertErr");
+  const message = $("alertMsg").value.trim();
+  err.hidden = true;
+
+  if (!message) return fail(err, "Write a message first.");
+
+  const d = untilDate();
+  if (!d || isNaN(d)) return fail(err, "Pick when it should come down.");
+  if (d.getTime() <= Date.now()) return fail(err, "That time has already passed.");
+
+  const btn = $("alertPublish");
+  btn.disabled = true;
+  btn.textContent = "Publishing…";
+  try {
+    await call("publishAlert", { message, tone: alertTone, until: d.toISOString() });
+    await refreshSettings();
+    showLiveAlert();
+    $("alertMsg").value = "";
+    toast("Alert is live");
+  } catch (e) {
+    fail(err, e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Publish alert";
+  }
+}
+
+async function clearAlert() {
+  const err = $("alertErr");
+  err.hidden = true;
+  try {
+    await call("clearAlert", {});
+    await refreshSettings();
+    showLiveAlert();
+    toast("Alert taken down");
+  } catch (e) {
+    fail(err, e.message);
+  }
+}
+
+async function saveSettings() {
+  const err = $("settingsErr");
+  err.hidden = true;
+
+  // Empty string deletes the stored row, which is what puts a field back
+  // to the config.js default.
+  const patch = {
+    "biz.name": $("setName").value.trim(),
+    "biz.phone": $("setPhone").value.trim(),
+    "biz.email": $("setEmail").value.trim(),
+    "biz.serviceArea": $("setArea").value.trim(),
+    "biz.tagline": $("setTagline").value.trim(),
+    "biz.hours": $("setHours").value.trim(),
+    "biz.trust": $("setTrust").value.split("\n")
+      .map((t) => t.trim()).filter(Boolean).join(" | "),
+    seasonMonthlyFactor: $("setSeason").value.trim(),
+  };
+
+  const changedPrices = [];
+  (CFG.services || []).forEach((s) => {
+    const el = document.querySelector(`[data-price="${s.id}"]`);
+    if (!el) return;
+    patch["price." + s.id] = el.value.trim();
+    if (Number(el.value) !== Number(s.base)) {
+      changedPrices.push(`${s.label}: $${s.base} → $${el.value}`);
+    }
+  });
+  (CFG.drivewaySizes || []).forEach((s) => {
+    const el = document.querySelector(`[data-size="${s.id}"]`);
+    if (!el) return;
+    patch["size." + s.id] = el.value.trim();
+    if (Number(el.value) !== Number(s.mult)) {
+      changedPrices.push(`${s.label}: ×${s.mult} → ×${el.value}`);
+    }
+  });
+  if (Number($("setSeason").value) !== Number(CFG.seasonMonthlyFactor)) {
+    changedPrices.push(
+      `Season factor: ${CFG.seasonMonthlyFactor} → ${$("setSeason").value}`);
+  }
+
+  // Anything that moves a quote gets read back before it goes live.
+  if (changedPrices.length && !confirm(
+      "This changes what customers are quoted:\n\n" +
+      changedPrices.join("\n") + "\n\nSave?")) {
+    return;
+  }
+
+  const btn = $("settingsSave");
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    await call("saveSettings", { settings: patch });
+    await refreshSettings();
+    fillSettingsForm();
+    toast("Saved");
+  } catch (e) {
+    fail(err, e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Save changes";
+  }
+}
+
+async function resetSettings() {
+  if (!confirm(
+      "Clear every stored override and go back to what config.js ships?\n\n" +
+      "The alert is left alone — use Take it down for that.")) return;
+
+  const patch = {};
+  ["name", "phone", "email", "serviceArea", "tagline", "hours", "trust"]
+    .forEach((k) => (patch["biz." + k] = ""));
+  (CFG.services || []).forEach((s) => (patch["price." + s.id] = ""));
+  (CFG.drivewaySizes || []).forEach((s) => (patch["size." + s.id] = ""));
+  patch.seasonMonthlyFactor = "";
+
+  try {
+    await call("saveSettings", { settings: patch });
+    await refreshSettings();       // restores the shipped values into CFG
+    fillSettingsForm();
+    toast("Back to config.js defaults");
+  } catch (e) {
+    fail($("settingsErr"), e.message);
+  }
+}
+
+function fail(el, message) {
+  el.textContent = message;
+  el.hidden = false;
 }
 
 boot();

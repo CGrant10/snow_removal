@@ -91,6 +91,12 @@
 
 </svg>
 
+<!-- ============================================================
+     Operator alert. Filled in by settings.js when the job board has
+     published one and it hasn't expired. First flex child of the body,
+     so it pushes the shell down rather than covering anything. -->
+<div class="alertBar" id="alertBar" hidden></div>
+
 <!-- ============================================ compact bar (mobile only) -->
 <div class="stickyTop">
 <header class="topbar">
@@ -307,6 +313,7 @@
 <button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
 
 <script src="../config.js"></script>
+<script src="../settings.js"></script>
 <script src="../updater.js"></script>
 <script src="app.js"></script>
 </body>
