@@ -298,7 +298,12 @@ function show(n) {
   $("nextBtn").textContent = n === STEPS - 1 ? "Send request" : "Continue";
   $("progress").hidden = n >= STEPS;
   document.querySelector(".navbar").hidden = n >= STEPS;   // nothing left to do
-  window.scrollTo({ top: 0, behavior: "instant" });
+
+  // The document itself never scrolls — the scroller is #app (mobile) or
+  // .content (desktop), whichever is actually overflowing.
+  [$("app"), document.querySelector(".content")].forEach((el) => {
+    if (el) el.scrollTop = 0;
+  });
   if (n === STEPS - 1) renderSummary();
 }
 

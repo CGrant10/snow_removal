@@ -57,6 +57,43 @@ Light theme by default because it reads as more trustworthy on a booking
 form; dark follows the visitor's system setting. Both are styled deliberately,
 and `prefers-reduced-motion` is honored.
 
+## Page stability
+
+Most people will use this in a browser, not installed, so it's built to
+behave like an app rather than a document.
+
+**The whole page is a fixed-height shell and exactly one element inside it
+scrolls** — `main` on the form, `.boardScroll` on the job board. The document
+itself never scrolls, so there's no second scroll for a browser to rubber-band
+against. Consequences:
+
+- No white gap past the end of the content, and no bounce.
+- **If everything fits, nothing moves.** Short screens — the confirmation, the
+  sign-in — are locked; a finger dragging on them does nothing.
+- The header and the button bar are outside the scroller, so they can't drift
+  or detach. The nav bar is a flex item rather than `position: fixed`, which
+  is what used to jump when a mobile keyboard opened.
+- Height is `100dvh`, so the layout doesn't lurch as browser toolbars slide.
+- Long-press selects nothing and raises no iOS callout menu. Selection is
+  re-enabled only where it's useful: form fields, the review summary, the job
+  board's addresses and details.
+- `touch-action: manipulation` on anything tappable kills the 300ms
+  double-tap-zoom delay; `overscroll-behavior: contain` keeps a flick from
+  handing the gesture to the page, including sideways on the filter row, where
+  it would otherwise trigger swipe-back.
+- Every field is 16px on touch, because iOS zooms into anything smaller on
+  focus and never zooms back out.
+
+### Device coverage
+
+Verified with no horizontal overflow and the body exactly matching the
+viewport at: **320×568** (iPhone SE, older Androids), **344×882** (Z Fold
+cover screen), **390×844**, **812×375** (landscape phone), **884×1104**
+(Z Fold unfolded), and **1280×800**. Breakpoints: two-column job board at
+760px, sidebar layout at 900px, wide review at 1180px. An unfolded foldable
+lands just under 900px and gets the phone layout with a centred 720px column
+— deliberate; a 340px sidebar would leave the form too narrow there.
+
 ## Installable app (PWA)
 
 Both surfaces install to a phone or desktop home screen and run without

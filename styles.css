@@ -68,6 +68,68 @@
    win over the hidden attribute. */
 [hidden] { display: none !important; }
 
+/* ============================================================
+   Page stability.
+
+   Most people will use this in a browser, not installed, so the page
+   has to behave like an app rather than a document: nothing rubber-
+   bands, no white gap appears past the end of the content, and the
+   view doesn't drift when a finger rests on it.
+
+   The whole page is a fixed-height shell and exactly ONE element
+   inside it scrolls. Nothing scrolls at the document level, so there
+   is no second scroll for a browser to bounce.
+   ============================================================ */
+
+html, body {
+  height: 100%;
+  overflow: hidden;                /* the document never scrolls */
+  overscroll-behavior: none;       /* no bounce, no pull-to-refresh */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;  /* stop rotation from resizing text */
+  text-size-adjust: 100%;
+}
+
+body {
+  /* dvh follows the shrinking/growing browser toolbars on iOS and
+     Android, so the layout doesn't jump as they slide away. vh is the
+     fallback for anything that doesn't know dvh. */
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Long-press should never select text or raise the iOS callout menu.
+   Re-enabled below for the things worth copying. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable],
+.summary .v, .addr, .details, .ref, .railContact a {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Kills the 300ms double-tap-to-zoom delay on anything tappable. */
+button, a, select, input, textarea, label, .card, .chip {
+  touch-action: manipulation;
+}
+
+/* Any scrolling region: contain the bounce so a flick that runs out of
+   content can't hand the gesture up to the page. */
+.scrollY {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;                   /* lets a flex child actually shrink */
+}
+
 /* ---------------------------------------------------------- icons
    One monoline set, stroke-only, inheriting currentColor so a single
    `color` declaration restyles any icon anywhere.                    */
@@ -87,8 +149,6 @@ svg[class] , .tick svg, .bigcheck svg {
 .tick svg { width: 13px; height: 13px; stroke-width: 2.6; }
 .bigcheck svg { width: 36px; height: 36px; stroke-width: 2.4; }
 
-html { -webkit-text-size-adjust: 100%; }
-
 body {
   margin: 0;
   background: var(--bg);
@@ -105,7 +165,9 @@ p { margin: 0; }
 
 /* ===================================================== compact top bar
    Mobile only. The sidebar replaces it on wide screens.               */
-.stickyTop { position: sticky; top: 0; z-index: 10; }
+/* Header sits outside the scroller now, so it can't slide or be
+   scrolled past — no sticky needed, and nothing to detach on iOS. */
+.stickyTop { flex: none; z-index: 10; }
 
 .topbar {
   display: flex;
@@ -251,19 +313,36 @@ p { margin: 0; }
 .progress i.on { background: var(--accent); }
 
 /* ===================================================== shell */
-.shell { display: block; }
+/* .shell takes whatever height is left under the header and gives it to
+   .content; .content splits it between the scroller and the nav bar. */
+.shell { flex: 1; min-height: 0; display: flex; }
 
 /* ===================================================== sidebar */
 .rail { display: none; }
 
 /* ===================================================== content */
 .content {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 16px 96px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-main { padding: 24px 0 8px; }
+/* the one scrolling element on the form */
+main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 24px 16px 8px;
+  /* centred like the old max-width, but on the scroller itself so the
+     scrollbar stays at the edge of the screen */
+  scrollbar-gutter: stable;
+}
+main > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .step[hidden] { display: none; }
 .step { animation: rise .28s ease both; }
 @keyframes rise {
@@ -451,14 +530,18 @@ input[type="date"] { max-width: 240px; }
 }
 
 /* ===================================================== nav */
+/* In the flex column rather than position:fixed. A fixed bar is what
+   jumps around when a mobile keyboard opens or a toolbar slides away;
+   as a flex item it is simply always the bottom of the shell. */
 .navbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  flex: none;
   display: flex; align-items: center; gap: 12px;
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--line);
   box-shadow: 0 -4px 18px rgba(15,28,51,.07);
 }
+.navbar > .btn { flex: none; }
 .runningTotal {
   flex: 1; text-align: center;
   font-size: 14px; font-weight: 600; color: var(--ink-2);
@@ -496,17 +579,20 @@ input[type="date"] { max-width: 240px; }
   .shell {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
-    min-height: 100vh;
     max-width: 1280px;
+    width: 100%;
     margin: 0 auto;
+    min-height: 0;             /* the body already caps the height */
   }
 
   /* ---------------------------------------------- sidebar */
   .rail {
     display: flex; flex-direction: column;
     gap: 34px;
-    position: sticky; top: 0; align-self: start;
-    height: 100vh;
+    height: 100%;
+    /* scrolls on its own only if a short window can't fit it */
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 36px 30px;
     background: linear-gradient(160deg, var(--rail-from) 0%, var(--rail-to) 100%);
     color: var(--rail-ink);
@@ -615,23 +701,28 @@ input[type="date"] { max-width: 240px; }
   .railContact p { margin-top: 4px; }
 
   /* ---------------------------------------------- form card */
+  /* On desktop the whole column scrolls, card and buttons together —
+     a card that scrolls inside a fixed frame feels stuck. */
   .content {
-    max-width: none;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 40px 48px 48px;
     display: flex; flex-direction: column;
   }
   main {
-    flex: 1;
+    flex: none;
+    overflow: visible;
     padding: 40px 44px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r-lg);
     box-shadow: var(--sh-2);
   }
+  main > * { max-width: none; margin-left: 0; margin-right: 0; }
   .step { max-width: 660px; }
 
   .navbar {
-    position: static;
     margin-top: 20px;
     padding: 0;
     background: none; border: none; box-shadow: none;
@@ -659,13 +750,14 @@ input[type="date"] { max-width: 240px; }
    job board meant to be worked from a phone at 5 AM.
    ============================================================ */
 
-.adminBody { padding-bottom: 40px; }
-
 /* ---------------------------------------------------------- gate */
 .gate {
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: grid; place-items: center;
   padding: 24px;
+  overflow-y: auto;                 /* only if a short screen needs it */
+  overscroll-behavior: contain;
   background: linear-gradient(160deg, var(--rail-from), var(--rail-to));
 }
 .gateCard {
@@ -689,7 +781,10 @@ input[type="date"] { max-width: 240px; }
 .btn.wide { width: 100%; margin-top: 18px; }
 
 /* ---------------------------------------------------------- bar */
+.board { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
 .adminBar {
+  flex: none;
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
   padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
@@ -713,14 +808,37 @@ input[type="date"] { max-width: 240px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------------------------------------------------------- tools */
+/* Outside the scroller, so filters and search are always reachable
+   without sticky positioning. */
 .adminTools {
-  position: sticky; top: 0; z-index: 5;
+  flex: none;
   display: grid; gap: 10px;
   padding: 14px 16px;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
-.adminTools .chips { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+
+/* the one scrolling region on the board */
+.boardScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.adminTools .chips {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  padding-bottom: 2px;
+  /* contain-x stops a horizontal flick at the end of the filters from
+     becoming a swipe-back gesture; the hidden scrollbar keeps the row
+     from growing a grey bar on desktop. */
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.adminTools .chips::-webkit-scrollbar { display: none; }
 .adminTools .chip { white-space: nowrap; font-size: 13.5px; padding: 7px 13px; }
 .adminTools input { padding: 10px 13px; }
 
@@ -801,6 +919,64 @@ input[type="date"] { max-width: 240px; }
 .empty {
   padding: 48px 24px; text-align: center;
   color: var(--muted); font-size: 15px;
+}
+
+/* ============================================================
+   Device fit — old small phones through folded/unfolded foldables,
+   tablets, and desktops.
+   ============================================================ */
+
+/* iOS zooms the whole page when a field smaller than 16px gets focus, and
+   never zooms back out. Any field that could be tapped on a phone is 16px.
+   Both conditions on purpose: pointer:coarse catches tablets and touch
+   laptops, the width query catches a phone-sized window (and is testable). */
+@media (pointer: coarse), (max-width: 899px) {
+  input, textarea, select, .statusSel, .officeNotes { font-size: 16px; }
+}
+
+/* 320–360px: iPhone SE, older Androids, and a Z Fold's outer screen.
+   Tighten padding rather than let anything overflow. */
+@media (max-width: 380px) {
+  main { padding-left: 12px; padding-right: 12px; }
+  .topbar { padding-left: 12px; padding-right: 12px; gap: 8px; }
+  .brand h1 { font-size: 15px; }
+  .mark { width: 38px; height: 38px; }
+  .markIcon { width: 20px; height: 20px; }
+  .callbtn { padding: 8px 12px; font-size: 13px; }
+  .navbar { padding-left: 12px; padding-right: 12px; gap: 8px; }
+  .btn { padding: 12px 16px; }
+  .card { padding: 13px 40px 13px 13px; }
+  .grid2 { grid-template-columns: 1fr; }   /* two fields side by side is too tight */
+  .jobs, .adminTools { padding-left: 12px; padding-right: 12px; }
+  .acts { gap: 6px; }
+  .act { font-size: 13px; padding: 9px 4px; }
+  .details .k { width: 84px; }
+}
+
+/* Landscape phones and other short windows: trim vertical padding so the
+   content area is still usable. */
+@media (max-height: 520px) and (max-width: 899px) {
+  main { padding-top: 14px; }
+  h2 { font-size: 20px; }
+  .cards { margin-top: 14px; }
+  h3 { margin-top: 18px; }
+  .topbar { padding-top: calc(8px + env(safe-area-inset-top)); padding-bottom: 8px; }
+  .navbar { padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+}
+
+/* Unfolded foldables and tablets sit between the phone and desktop
+   layouts — give the form a comfortable measure instead of letting it
+   run the full width. */
+@media (min-width: 600px) and (max-width: 899px) {
+  main { padding-left: 24px; padding-right: 24px; }
+  .navbar { padding-left: 24px; padding-right: 24px; }
+}
+
+/* A foldable opening mid-session changes width without a reload; the
+   layout is fluid so it reflows, but stop icons and cards from being
+   stretched by the extra room. */
+@media (min-width: 900px) {
+  .shell { min-width: 0; }
 }
 
 /* honour reduced-motion preferences */

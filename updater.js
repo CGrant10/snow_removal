@@ -12,7 +12,7 @@
    if it runs ahead, nobody is ever told there's a new one.
    ============================================================ */
 
-const APP_VERSION = "1.2.2";
+const APP_VERSION = "1.3.0";
 
 let latestVersion = null;   // live version string, when it differs from ours
 let onNewVersion = null;    // set by wireUpdater

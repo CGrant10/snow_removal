@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Job board</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#10233f">
@@ -79,13 +79,16 @@
     <input type="search" id="search" placeholder="Search name, address, phone…">
   </div>
 
-  <main class="jobs" id="jobs"></main>
+  <!-- the only scrolling region on the page -->
+  <div class="boardScroll">
+    <main class="jobs" id="jobs"></main>
 
-  <p class="empty" id="empty" hidden></p>
+    <p class="empty" id="empty" hidden></p>
 
-  <p class="verLine always">
-    <button id="appVersion" class="verBtn" title="Check for updates"></button>
-  </p>
+    <p class="verLine always">
+      <button id="appVersion" class="verBtn" title="Check for updates"></button>
+    </p>
+  </div>
 </div>
 
 <button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
