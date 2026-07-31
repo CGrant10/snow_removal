@@ -10,7 +10,7 @@
    a slow load. The cache is the offline fallback, not the fast path.
    ============================================================ */
 
-const VERSION = "v1.6.3";
+const VERSION = "v1.6.4";
 const CACHE = `snow-${VERSION}`;
 
 const SHELL = [

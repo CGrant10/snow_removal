@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.6.3";
+const APP_VERSION = "1.6.4";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -201,6 +201,7 @@ function wireInstall(buttons, hint, hintClose) {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();                        // we choose when to ask
     prompt = e;
+    promptEverFired = true;
     show(true);
   });
 
@@ -227,6 +228,60 @@ function wireInstall(buttons, hint, hintClose) {
   }
 
   always.forEach((b) => (b.hidden = false));
+}
+
+/* Set the first time Chrome offers us a prompt. If it stays false on a
+   Chromium browser, Chrome has decided the page isn't installable — and
+   the reason is what reportInstallState() goes looking for. */
+let promptEverFired = false;
+
+/**
+ * Write the browser's own answers into the hint card, so an install that
+ * refuses to happen on a phone can be diagnosed without a USB cable.
+ * Everything here is read-only and best effort.
+ */
+async function reportInstallState() {
+  const out = document.getElementById("installDiag");
+  if (!out) return;
+
+  const lines = [];
+  const link = document.querySelector('link[rel="manifest"]');
+  lines.push("manifest tag: " + (link ? link.getAttribute("href") : "MISSING"));
+
+  if (link) {
+    try {
+      const res = await fetch(link.href, { cache: "no-store" });
+      const m = await res.json();
+      lines.push(`manifest: ${res.status} · id ${m.id} · start ${m.start_url}`);
+    } catch (err) {
+      lines.push("manifest: FAILED TO LOAD — " + err.message);
+    }
+  }
+
+  lines.push("worker: " + (navigator.serviceWorker
+    ? (navigator.serviceWorker.controller ? "controlling" : "not controlling")
+    : "unsupported"));
+  lines.push("prompt offered: " + (promptEverFired ? "yes" : "no"));
+  lines.push("display: " +
+    (window.matchMedia("(display-mode: standalone)").matches
+      ? "standalone" : "browser"));
+
+  // The interesting one: Chrome refuses to offer an install when it thinks
+  // a related app covering this page is already on the phone.
+  if (navigator.getInstalledRelatedApps) {
+    try {
+      const apps = await navigator.getInstalledRelatedApps();
+      lines.push("already installed here: " + (apps.length
+        ? apps.map((a) => a.id || a.url || a.platform).join(", ")
+        : "none"));
+    } catch {
+      lines.push("already installed here: unreadable");
+    }
+  }
+
+  lines.push("v" + APP_VERSION);
+  out.textContent = lines.join("\n");
+  out.hidden = false;
 }
 
 /* Fills the hint card with directions for whichever browser this is, since
@@ -261,6 +316,8 @@ function showInstallHint(hint) {
       "Click the install icon at the right end of the address bar, or open " +
       "the ⋮ menu and choose Install.";
   }
+
+  reportInstallState();
 
   const t = document.getElementById("installHintTitle");
   const b = document.getElementById("installHintBody");

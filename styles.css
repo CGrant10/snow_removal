@@ -228,6 +228,18 @@ p { margin: 0; }
 .iosHint p { font-size: 14.5px; color: var(--ink-2); }
 .iosHint p + p { margin-top: 4px; }
 .iosHint strong { color: var(--ink); }
+
+/* Install diagnostics. Only ever shown on the staff board, and only after
+   the Install button has already failed to do anything. */
+.installDiag {
+  margin-top: 10px; padding: 8px 10px;
+  max-height: 40vh; overflow: auto;
+  background: var(--bg); border-radius: 8px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11.5px; line-height: 1.5; color: var(--ink-2);
+  white-space: pre-wrap; word-break: break-word;
+  user-select: text;
+}
 .btn.sm { margin-top: 12px; padding: 8px 16px; font-size: 14px; }
 
 .updatePill {
