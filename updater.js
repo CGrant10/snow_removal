@@ -7,15 +7,23 @@
        VERSION     in sw.js   (names the cache)
        version.txt at the root (what the running app polls)
 
-   Use `python tools/bump_version.py 1.2.1` so they can't drift. If
+   Use `python tools/bump_version.py 1.3.2` so they can't drift. If
    version.txt falls behind, the app offers a phantom update forever;
    if it runs ahead, nobody is ever told there's a new one.
+
+   version.txt is the ONLY thing that decides whether an update exists.
+   The service worker deliberately does not get a vote: a new worker
+   installs as a *result* of updating, which used to re-raise the
+   "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.1";
 
-let latestVersion = null;   // live version string, when it differs from ours
-let onNewVersion = null;    // set by wireUpdater
+/* Survives the reload so we can confirm on the other side. */
+const DONE_KEY = "snow.updatedTo";
+
+let latestVersion = null;
+let onNewVersion = null;
 
 /** Polls version.txt. Cheap, silent, safe to call often. */
 async function checkForUpdate() {
@@ -30,7 +38,8 @@ async function checkForUpdate() {
     if (newer && onNewVersion) onNewVersion(live);
     return newer;
   } catch {
-    return false;              // offline: nothing to say
+    latestVersion = null;              // offline
+    return false;
   }
 }
 
@@ -43,7 +52,11 @@ async function checkForUpdate() {
  * reopened. Staying controlled means the reload flows through the worker's
  * network-first handler and picks up the new files immediately.
  */
-async function forceUpdate() {
+async function forceUpdate(target) {
+  try {
+    sessionStorage.setItem(DONE_KEY, target || "");
+  } catch {}
+
   try {
     if (window.caches) {
       const keys = await caches.keys();
@@ -59,106 +72,85 @@ async function forceUpdate() {
   window.location.replace(window.location.pathname + "?v=" + Date.now());
 }
 
-/* ------------------------------------------------------------ overlay */
-function showUpdateOverlay() {
-  if (document.getElementById("updOverlay")) return;
+/* ------------------------------------------------------------ toast */
+function toast(message, ms = 2400) {
+  const old = document.getElementById("snowToast");
+  if (old) old.remove();
 
-  const overlay = document.createElement("div");
-  overlay.id = "updOverlay";
-  overlay.className = "updOverlay";
-  overlay.innerHTML = `
-    <div class="updCard" role="status" aria-live="polite">
-      <div class="updHead"><span class="dot"></span>Software update</div>
-      <div class="updBody" id="updBody"></div>
-    </div>`;
-  document.body.appendChild(overlay);
+  const el = document.createElement("div");
+  el.id = "snowToast";
+  el.className = "toast";
+  el.setAttribute("role", "status");
+  el.textContent = message;
+  document.body.appendChild(el);
 
-  const body = overlay.querySelector("#updBody");
-  const line = (html, cls = "") => {
-    const d = document.createElement("div");
-    d.className = "updLine" + (cls ? " " + cls : "");
-    d.innerHTML = html;
-    body.appendChild(d);
-  };
+  setTimeout(() => {
+    el.classList.add("out");
+    setTimeout(() => el.remove(), 320);
+  }, ms);
+}
 
-  let canClose = false;
-  const close = () => {
-    overlay.classList.add("out");
-    setTimeout(() => overlay.remove(), 240);
-  };
-  overlay.addEventListener("click", () => canClose && close());
+/* ------------------------------------------------------------ action */
+/** Tap the version, or the pill: check, then either update or say so. */
+async function runUpdate(button) {
+  const label = button ? button.textContent : null;
+  if (button) { button.disabled = true; button.textContent = "Checking…"; }
 
-  setTimeout(() => line("Checking for updates…"), 200);
-  setTimeout(() => line(`Comparing against v${APP_VERSION}…`), 850);
+  const newer = await checkForUpdate();
 
-  setTimeout(async () => {
-    const newer = await checkForUpdate();
-    if (newer) {
-      line(`<strong>v${latestVersion} found</strong> — installing<span class="cur">▋</span>`, "big ok");
-      setTimeout(forceUpdate, 1200);          // navigates away
-    } else if (latestVersion === null) {
-      line("<strong>Couldn't reach the server</strong>", "big");
-      line("You're offline. Try again when you have signal.", "dim");
-      canClose = true;
-      setTimeout(() => overlay.isConnected && close(), 3200);
-    } else {
-      line(`<strong>Up to date</strong> ✓ <span class="dim">v${APP_VERSION}</span>`, "big ok");
-      line("Tap anywhere to close", "dim");
-      canClose = true;
-      setTimeout(() => overlay.isConnected && close(), 2600);
-    }
-  }, 1500);
+  if (newer) {
+    if (button) button.textContent = "Updating…";
+    return forceUpdate(latestVersion);      // navigates away
+  }
+
+  if (button) { button.disabled = false; button.textContent = label; }
+  toast(latestVersion === null
+    ? "Can't check right now — you're offline"
+    : `Up to date · v${APP_VERSION}`);
 }
 
 /**
  * Wire up the update UI.
- *   buttons – elements that open the overlay when tapped
- *   pill    – optional element revealed automatically when a poll finds
- *             a newer version, so nobody has to think to check
+ *   buttons – elements that run the update when tapped
+ *   pill    – optional element revealed when a poll finds a newer version
  */
 function wireUpdater(buttons, pill) {
   buttons.filter(Boolean).forEach((b) => {
     b.textContent = "v" + APP_VERSION;
-    b.addEventListener("click", showUpdateOverlay);
+    b.addEventListener("click", () => runUpdate(b));
   });
 
   if (pill) {
     onNewVersion = () => (pill.hidden = false);
-    pill.addEventListener("click", showUpdateOverlay);
+    pill.addEventListener("click", () => runUpdate(null));
   }
 
-  registerServiceWorker(pill);
+  // Landed here from an update we just ran — confirm it and move on.
+  try {
+    const target = sessionStorage.getItem(DONE_KEY);
+    if (target !== null) {
+      sessionStorage.removeItem(DONE_KEY);
+      // Only claim success if we really are on the version we aimed for.
+      if (!target || target === APP_VERSION) toast(`Updated to v${APP_VERSION}`);
+    }
+  } catch {}
+
+  registerServiceWorker();
 
   checkForUpdate();
   window.addEventListener("focus", checkForUpdate);
   setInterval(checkForUpdate, 120_000);
 }
 
-/* Registered from here so both the form and the job board are installable
-   and work offline, whichever one someone opens first. */
-function registerServiceWorker(pill) {
+/* Registered here so both the form and the job board are installable and
+   work offline, whichever one someone opens first. No update handling —
+   version.txt owns that. */
+function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol === "file:") return;   // no worker support, only errors
 
-  window.addEventListener("load", async () => {
-    try {
-      const reg = await navigator.serviceWorker.register("sw.js");
-
-      reg.addEventListener("updatefound", () => {
-        const fresh = reg.installing;
-        if (!fresh) return;
-        fresh.addEventListener("statechange", () => {
-          // A controller already exists, so this is an update rather than a
-          // first install. Offer it — never reload out from under someone
-          // who is halfway through the form.
-          if (fresh.state === "installed" &&
-              navigator.serviceWorker.controller && pill) {
-            pill.hidden = false;
-          }
-        });
-      });
-    } catch (err) {
-      console.warn("service worker registration failed", err);
-    }
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .catch((err) => console.warn("service worker registration failed", err));
   });
 }

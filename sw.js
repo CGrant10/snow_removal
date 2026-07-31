@@ -10,7 +10,7 @@
    a slow load. The cache is the offline fallback, not the fast path.
    ============================================================ */
 
-const VERSION = "v1.3.0";
+const VERSION = "v1.4.1";
 const CACHE = `snow-${VERSION}`;
 
 const SHELL = [
@@ -93,8 +93,6 @@ self.addEventListener("fetch", (e) => {
   );
 });
 
-/* Lets the page trigger an immediate update instead of waiting for a
-   second visit. See the updater in app.js. */
-self.addEventListener("message", (e) => {
-  if (e.data === "skip-waiting") self.skipWaiting();
-});
+/* No message handler. The update path is: version.txt says there's a new
+   build -> clear caches -> reload. install() already calls skipWaiting(),
+   so there is never a worker sitting in "waiting" to be nudged. */

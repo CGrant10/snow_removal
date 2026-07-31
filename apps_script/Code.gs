@@ -29,15 +29,15 @@ var SETTINGS = {
   // bump, not real security.
   SHARED_SECRET: '',
 
-  // LEAVE THIS EMPTY. This file lives in a public git repo — a passphrase
-  // typed here gets pushed to GitHub. Set it as a Script Property instead:
+  // TESTING PASSPHRASE — this file is in a public git repo, so treat this
+  // as public knowledge. Fine while nothing real is in the Sheet; change it
+  // before any actual customer data lands.
   //
+  // To use a private one, add a Script Property instead of editing here:
   //   Apps Script editor -> Project Settings (gear)
   //   -> Script Properties -> Add: ADMIN_PASSPHRASE = your-passphrase
-  //
-  // That value stays inside your Google account and never touches the repo.
-  // See "Setting the admin passphrase" in README_SETUP.md.
-  ADMIN_PASSPHRASE: '',
+  // A Script Property always wins over this value and never touches the repo.
+  ADMIN_PASSPHRASE: 'snowadmin1',
 
   // Status values offered as a dropdown in column C.
   STATUSES: ['New', 'Quoted', 'Scheduled', 'Done', 'Declined'],

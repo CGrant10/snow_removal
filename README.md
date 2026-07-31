@@ -117,15 +117,24 @@ useless to a business.
 ### The update button
 
 Both pages show their version — in the sidebar on desktop, at the bottom on a
-phone. Tapping it checks for a new build and installs it: clears the caches,
-nudges the service worker, and reloads cache-busted. If a background poll
-finds a new version first (on window focus, and every two minutes), an
-**Update available** pill appears so nobody has to think to check.
+phone, and on the job board. Tap it and it just updates: clears the caches,
+nudges the service worker, reloads cache-busted, and fades up a **Updated to
+v1.4.1** toast on the other side. Already current, and it says **Up to date**
+and stays put. No overlay, no animation to sit through.
 
-The install deliberately does **not** unregister the service worker.
-Unregistering makes the reload uncontrolled, so the browser's own HTTP cache
-serves the old files and the update looks like it did nothing until the app is
-closed and reopened.
+If a background poll finds a new version first (on window focus, and every two
+minutes), an **Update available** pill appears so nobody has to think to check.
+
+Two things this gets right that are easy to get wrong:
+
+- **`version.txt` is the only thing that decides whether an update exists.**
+  The service worker deliberately gets no vote. A new worker installs as a
+  *result* of updating, so letting `updatefound` raise the pill meant the
+  "update available" prompt came back the instant an update succeeded.
+- The install does **not** unregister the service worker. Unregistering makes
+  the reload uncontrolled, so the browser's own HTTP cache serves the old
+  files and the update looks like it did nothing until the app is closed and
+  reopened.
 
 ### Version bumps — all three, every time
 
@@ -237,12 +246,12 @@ Nothing on the public form links to it, and it carries `noindex` so search
 engines skip it. Bookmark it, or install it to a home screen for a one-tap
 job board.
 
-**It won't let you in until three things are true:** `mode: "gsheet"` with a
-real `/exec` URL in `config.js`, an `ADMIN_PASSPHRASE` set as a **Script
-Property** (see [the setup doc](apps_script/README_SETUP.md) — never typed
-into `Code.gs`, which is public), and a new deployment made after setting it.
-There is no default passphrase; while it's unset, every admin request is
-refused.
+**It won't let you in until two things are true:** `mode: "gsheet"` with a real
+`/exec` URL in `config.js`, and the script deployed. The passphrase is
+currently **`snowadmin1`** for testing — and since `Code.gs` is public, treat
+it as public. [The setup doc](apps_script/README_SETUP.md) covers moving it to
+a Script Property, which stays in the Google account and never touches the
+repo; do that before real customer data lands in the Sheet.
 
 Same Sheet, staff side. Requires the `gsheet` delivery mode and an
 `ADMIN_PASSPHRASE` set in `Code.gs` — leave it empty and the admin endpoints

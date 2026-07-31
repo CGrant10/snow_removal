@@ -97,13 +97,15 @@ New version → Deploy**. Same URL, new code. This trips up everyone once.
 
 ## Setting the admin passphrase
 
-There is no default passphrase. `ADMIN_PASSPHRASE` ships empty, and while
-it's empty every admin request is refused — that's the safe default, not an
-oversight. You choose one.
+`ADMIN_PASSPHRASE` in `Code.gs` is currently **`snowadmin1`**, for testing.
 
-**Do not type it into `Code.gs`.** That file is in a public git repo; a
-passphrase committed there is on the internet. Put it in a Script Property,
-which lives in your Google account and never touches the repo:
+**Treat that as public.** `Code.gs` is in a public git repo, so anyone can
+read it. It's fine while the Sheet holds nothing but test rows — change it
+before a real customer's name and address land in there.
+
+To use a private one, don't edit `Code.gs`. Put it in a Script Property,
+which lives in your Google account and never touches the repo (a Script
+Property always wins over the value in the file):
 
 1. In the Apps Script editor, click **Project Settings** (the gear, left side).
 2. Scroll to **Script Properties** → **Add script property**.
