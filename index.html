@@ -2,312 +2,34 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<title>Reserve snow removal</title>
-<meta name="description" content="Reserve driveway plowing, sidewalk clearing, and ice melt in a couple of minutes.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northern Edge Snow Removal</title>
 <meta name="theme-color" content="#10233f">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Snow Removal">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<!-- same crystal as the sprite's #i-flake, inlined so the tab icon matches -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231462c9' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'><path d='M12 2.6 20.1 7.3v9.4L12 21.4 3.9 16.7V7.3Z'/><path d='M12 7.6v8.8'/><path d='M8.2 9.8 15.8 14.2'/><path d='M15.8 9.8 8.2 14.2'/></svg>">
-<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="icons/icon-192.png">
+
+<!-- The reservation form used to live here. It moved into reserve/ so the
+     two apps stop sharing an install scope; see sw-core.js. This page has
+     no manifest on purpose — it must not be installable itself, or it
+     would claim the whole site's scope all over again.
+
+     Old installs still start here, and their scope covers reserve/, so
+     they land in the form and keep working. -->
+<meta http-equiv="refresh" content="0; url=reserve/">
+<script>location.replace("reserve/" + location.search + location.hash);</script>
+
+<style>
+  body {
+    margin: 0; min-height: 100vh;
+    display: grid; place-items: center;
+    background: #eef2f8; color: #3d4d68;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center; padding: 24px;
+  }
+  a { color: #1462c9; }
+</style>
 </head>
 <body>
-
-<!-- ============================================================
-     Icon sprite. Hand-drawn monoline set, 24×24, stroke-only so
-     everything inherits currentColor. Referenced by id from
-     config.js (`icon: "plow"` → #i-plow).
-     ============================================================ -->
-<svg class="sprite" aria-hidden="true" focusable="false">
-
-  <!-- brand: a crystal — hexagon with an asterisk core -->
-  <symbol id="i-flake" viewBox="0 0 24 24">
-    <path d="M12 2.6 20.1 7.3v9.4L12 21.4 3.9 16.7V7.3Z"/>
-    <path d="M12 7.6v8.8"/>
-    <path d="M8.2 9.8 15.8 14.2"/>
-    <path d="M15.8 9.8 8.2 14.2"/>
-  </symbol>
-
-  <!-- driveway: a plow blade rolling a curl of snow off to the side -->
-  <symbol id="i-plow" viewBox="0 0 24 24">
-    <path d="M17 4.4c-3.7 2.2-5.6 4.9-5.6 8.1s1.9 5.9 5.6 8.1"/>
-    <path d="M17 4.4h2.5a1.1 1.1 0 0 1 1.1 1.1v13.5a1.1 1.1 0 0 1-1.1 1.1H17"/>
-    <path d="M14.6 6.9v11.2"/>
-    <path d="M10.3 9.7C7 10.3 5.4 11.7 5.4 14"/>
-    <path d="M2.8 19.6h6.4"/>
-  </symbol>
-
-  <!-- walks: steps climbing out from under the snowfall -->
-  <symbol id="i-steps" viewBox="0 0 24 24">
-    <path d="M2.8 20.2h4.9v-4.1h4.6V12h4.6V7.9h4.3"/>
-    <circle cx="7.2" cy="6.4" r=".95"/>
-    <circle cx="12.3" cy="4.6" r=".95"/>
-    <circle cx="17.4" cy="5.6" r=".95"/>
-  </symbol>
-
-  <!-- ice melt: a bucket throwing grains -->
-  <symbol id="i-salt" viewBox="0 0 24 24">
-    <path d="M5.8 9.2h9l-1.3 7.1a2.1 2.1 0 0 1-2.1 1.7H9.2a2.1 2.1 0 0 1-2.1-1.7Z"/>
-    <path d="M4.4 9.2h11.8"/>
-    <circle cx="19.6" cy="7.9" r=".85"/>
-    <circle cx="17.6" cy="11.6" r=".85"/>
-    <circle cx="20.8" cy="12.4" r=".85"/>
-    <circle cx="19" cy="16.2" r=".85"/>
-  </symbol>
-
-  <!-- roof: an eave hung with icicles -->
-  <symbol id="i-roof" viewBox="0 0 24 24">
-    <path d="M2.8 12.6 12 5.2l9.2 7.4"/>
-    <path d="M4.6 13.5h14.8"/>
-    <path d="m7 14 .95 3.6.95-3.6"/>
-    <path d="m11.2 14 1.1 4.8 1.1-4.8"/>
-    <path d="m15.7 14 .95 3.1.95-3.1"/>
-  </symbol>
-
-  <!-- commercial lot: stalls and a center aisle, seen from above -->
-  <symbol id="i-lot" viewBox="0 0 24 24">
-    <rect x="3" y="4.8" width="18" height="14.4" rx="2"/>
-    <path d="M7.5 4.8v3.5M12 4.8v3.5M16.5 4.8v3.5"/>
-    <path d="M7.5 19.2v-3.5M12 19.2v-3.5M16.5 19.2v-3.5"/>
-    <path d="M5 12h14" stroke-dasharray="2.6 2.4"/>
-  </symbol>
-
-  <!-- selection + confirmation -->
-  <symbol id="i-check" viewBox="0 0 24 24">
-    <path d="M5 12.6 9.7 17.3 19 6.8"/>
-  </symbol>
-
-  <!-- install to home screen -->
-  <symbol id="i-install" viewBox="0 0 24 24">
-    <path d="M12 3.6v10.8"/>
-    <path d="m7.8 10.6 4.2 4.2 4.2-4.2"/>
-    <path d="M4.4 17.2v1.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8v-1.4"/>
-  </symbol>
-
-</svg>
-
-<!-- ============================================ compact bar (mobile only) -->
-<div class="stickyTop">
-<header class="topbar">
-  <div class="brand">
-    <span class="mark">❄</span>
-    <div>
-      <h1 id="bizNameSm">Snow Removal</h1>
-      <p id="bizAreaSm" class="muted sm"></p>
-    </div>
-  </div>
-  <div class="topActions">
-    <button id="installBtnSm" class="callbtn" hidden>Install</button>
-    <a id="bizPhoneSm" class="callbtn" href="#">Call</a>
-  </div>
-</header>
-<div class="progress" id="progress"></div>
-</div>
-
-<div class="shell">
-
-  <!-- ================================================ sidebar (desktop) -->
-  <aside class="rail">
-    <div class="railTop">
-      <div class="brand lg">
-        <span class="mark"><svg class="markIcon"><use href="#i-flake"></use></svg></span>
-        <div>
-          <h1 id="bizName">Snow Removal</h1>
-          <p id="bizArea" class="muted sm"></p>
-        </div>
-      </div>
-      <p id="bizTagline" class="tagline"></p>
-    </div>
-
-    <ol class="stepper" id="stepper"></ol>
-
-    <div class="railBottom">
-      <div class="railEstimate" id="railEstimate" hidden>
-        <span class="lbl">Running estimate</span>
-        <span class="amt" id="railAmt"></span>
-        <span class="per" id="railPer"></span>
-      </div>
-      <ul class="trust" id="trustList"></ul>
-      <button id="installBtn" class="railInstall" hidden>
-        <svg class="dl" aria-hidden="true"><use href="#i-install"></use></svg>
-        Install this app
-      </button>
-
-      <div class="railContact">
-        <a id="bizPhone" href="#"></a>
-        <p id="bizHours" class="muted sm"></p>
-        <button id="appVersion" class="verBtn" title="Check for updates"></button>
-      </div>
-    </div>
-  </aside>
-
-  <!-- ================================================ form -->
-  <div class="content">
-    <main id="app">
-
-      <!-- ------------------------------------------------ 1: services -->
-      <section class="step" data-step="0">
-        <p class="eyebrow">Step 1 of 5</p>
-        <h2>What do you need done?</h2>
-        <p class="lede">Pick everything that applies — you can change it before you send.</p>
-        <div id="serviceList" class="cards"></div>
-        <p class="err" id="err-services" hidden>Pick at least one service to continue.</p>
-      </section>
-
-      <!-- ------------------------------------------------ 2: property -->
-      <section class="step" data-step="1" hidden>
-        <p class="eyebrow">Step 2 of 5</p>
-        <h2>Tell us about the property</h2>
-        <p class="lede">This is what lets us quote you accurately the first time.</p>
-
-        <div id="sizeBlock">
-          <h3>Driveway size</h3>
-          <div id="sizeList" class="cards two"></div>
-        </div>
-
-        <h3>Surface</h3>
-        <div id="surfaceList" class="chips"></div>
-
-        <h3>Anything we should know?</h3>
-        <div id="flagList" class="checks two"></div>
-
-        <label class="field">
-          <span>Where should the snow go?</span>
-          <input type="text" id="pileSpot" placeholder="e.g. north side of the drive, not by the mailbox">
-        </label>
-      </section>
-
-      <!-- ------------------------------------------------ 3: schedule -->
-      <section class="step" data-step="2" hidden>
-        <p class="eyebrow">Step 3 of 5</p>
-        <h2>How often, and when?</h2>
-        <p class="lede">Season contracts get first pass on storm days.</p>
-
-        <div id="planList" class="cards"></div>
-
-        <div id="triggerBlock" hidden>
-          <h3>Come out after how much snow?</h3>
-          <div id="triggerList" class="chips"></div>
-        </div>
-
-        <h3>Preferred start</h3>
-        <input type="date" id="startDate">
-
-        <h3>Time of day</h3>
-        <div id="windowList" class="cards two"></div>
-      </section>
-
-      <!-- ------------------------------------------------ 4: contact -->
-      <section class="step" data-step="3" hidden>
-        <p class="eyebrow">Step 4 of 5</p>
-        <h2>Where are we going, and who do we call?</h2>
-        <p class="lede">We confirm every job before the first visit. Nothing is charged here.</p>
-
-        <div class="grid2">
-          <label class="field">
-            <span>Name <i>*</i></span>
-            <input type="text" id="name" autocomplete="name" required>
-          </label>
-          <label class="field">
-            <span>Phone <i>*</i></span>
-            <input type="tel" id="phone" autocomplete="tel" placeholder="701-555-0134" required>
-          </label>
-        </div>
-
-        <label class="field">
-          <span>Email</span>
-          <input type="email" id="email" autocomplete="email" placeholder="Optional — for your confirmation">
-        </label>
-
-        <label class="field">
-          <span>Service address <i>*</i></span>
-          <input type="text" id="address" autocomplete="street-address" required>
-        </label>
-
-        <div class="grid2">
-          <label class="field">
-            <span>City <i>*</i></span>
-            <input type="text" id="city" autocomplete="address-level2" required>
-          </label>
-          <label class="field">
-            <span>ZIP</span>
-            <input type="text" id="zip" inputmode="numeric" autocomplete="postal-code">
-          </label>
-        </div>
-
-        <label class="field">
-          <span>Notes for the crew</span>
-          <textarea id="notes" rows="3" placeholder="Gate code, where to park, anything fragile…"></textarea>
-        </label>
-
-        <label class="check big">
-          <input type="checkbox" id="textOk" checked>
-          <span>Text me when the crew is on the way</span>
-        </label>
-
-        <p class="err" id="err-contact" hidden>Name, phone, address, and city are required.</p>
-      </section>
-
-      <!-- ------------------------------------------------ 5: review -->
-      <section class="step" data-step="4" hidden>
-        <p class="eyebrow">Step 5 of 5</p>
-        <h2>Look this over</h2>
-        <p class="lede">One last check, then it comes straight to us.</p>
-
-        <div class="reviewGrid">
-          <div id="summary" class="summary"></div>
-          <div class="estimate" id="estimate"></div>
-        </div>
-
-        <p class="fineprint">
-          This is a ballpark, not a quote. We confirm the price by phone or text
-          before the first visit, and nothing is charged through this form.
-        </p>
-
-        <p class="err" id="err-submit" hidden></p>
-      </section>
-
-      <!-- ------------------------------------------------ done -->
-      <section class="step done" data-step="5" hidden>
-        <div class="bigcheck"><svg><use href="#i-check"></use></svg></div>
-        <h2>Request sent</h2>
-        <p class="lede" id="doneMsg"></p>
-        <p class="ref" id="doneRef"></p>
-        <button class="btn ghost" id="againBtn">Book another property</button>
-      </section>
-
-      <!-- mobile only; the sidebar carries this on desktop -->
-      <p class="verLine">
-        <button id="appVersionSm" class="verBtn" title="Check for updates"></button>
-      </p>
-    </main>
-
-    <footer class="navbar">
-      <button class="btn ghost" id="backBtn" hidden>Back</button>
-      <div class="runningTotal" id="runningTotal"></div>
-      <button class="btn primary" id="nextBtn">Continue</button>
-    </footer>
-  </div>
-</div>
-
-<!-- Shown when the browser gives us no install prompt of our own; the
-     wording is filled in per browser by wireInstall(). -->
-<div class="iosHint" id="iosHint" hidden>
-  <p><strong id="installHintTitle">Add to Home Screen</strong></p>
-  <p id="installHintBody">Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
-  <button class="btn ghost sm" id="iosHintClose">Got it</button>
-</div>
-
-<!-- shown when a new version has been downloaded in the background -->
-<button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
-
-<script src="config.js"></script>
-<script src="updater.js"></script>
-<script src="app.js"></script>
+  <p>Taking you to the reservation form…<br>
+     <a href="reserve/">Continue</a></p>
 </body>
 </html>

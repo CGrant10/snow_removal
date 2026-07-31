@@ -4,8 +4,8 @@
    Three things must move together on every deploy:
 
        APP_VERSION here
-       VERSION     in sw.js   (names the cache)
-       version.txt at the root (what the running app polls)
+       VERSION     in sw-core.js  (names the cache)
+       version.txt at the root    (what the running app polls)
 
    Use `python tools/bump_version.py 1.3.2` so they can't drift. If
    version.txt falls behind, the app offers a phantom update forever;
@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.6.4";
+const APP_VERSION = "1.7.0";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -28,7 +28,9 @@ let onNewVersion = null;
 /** Polls version.txt. Cheap, silent, safe to call often. */
 async function checkForUpdate() {
   try {
-    const res = await fetch("./version.txt?_=" + Date.now(), { cache: "no-cache" });
+    // One version.txt at the site root, shared by both apps, which each
+    // live one folder down.
+    const res = await fetch("../version.txt?_=" + Date.now(), { cache: "no-cache" });
     if (!res.ok) return false;
     const live = (await res.text()).trim();
     if (!live) return false;
@@ -82,19 +84,21 @@ async function forceUpdate(target) {
   window.location.replace(window.location.pathname + "?v=" + Date.now());
 }
 
-/* Everything the two pages are built from. Refetched past the HTTP cache
-   on update; a 404 on any one of them is ignored. */
+/* Everything a page is built from, relative to the app folder it's in.
+   Refetched past the HTTP cache on update; a 404 on any one of them is
+   ignored, which is how app.js and admin.js can both be listed when only
+   one of them exists in a given folder. */
 const BUST = [
   "./",
   "index.html",
-  "admin.html",
-  "styles.css",
   "app.js",
   "admin.js",
-  "config.js",
-  "updater.js",
-  "manifest.json",
-  "admin.webmanifest",
+  "manifest.webmanifest",
+  "sw.js",
+  "../styles.css",
+  "../config.js",
+  "../updater.js",
+  "../sw-core.js",
 ];
 
 /* ------------------------------------------------------------ toast */

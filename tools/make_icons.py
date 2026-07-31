@@ -1,13 +1,13 @@
 """
 Generates the PWA icons from the same crystal mark used in the app.
 
-The mark lives as SVG paths in index.html (#i-flake). This redraws that
+The mark lives as SVG paths in reserve/index.html (#i-flake). This redraws that
 geometry with Pillow so the launcher icons and the in-app logo never drift
 apart. Re-run it after changing the mark, or when a real logo shows up:
 
     python tools/make_icons.py
 
-Writes into icons/ next to index.html.
+Writes into icons/ at the project root.
 """
 
 from __future__ import annotations

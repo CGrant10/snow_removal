@@ -2,141 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Job board</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#10233f">
-
-<!-- Its own manifest, not the customer form's. Without one Android only
-     drops a shortcut on the home screen instead of installing an app, and
-     pointing at manifest.json would install the app that opens the
-     reservation form. This one starts on the board. -->
-<link rel="manifest" href="admin.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Job Board">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
 <link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="styles.css">
+
+<!-- Kept only so the bookmark staff already have keeps working. The board
+     itself is in board/, which is what gives it its own install scope. -->
+<meta http-equiv="refresh" content="0; url=board/">
+<script>location.replace("board/" + location.search + location.hash);</script>
+
+<style>
+  body {
+    margin: 0; min-height: 100vh;
+    display: grid; place-items: center;
+    background: #eef2f8; color: #3d4d68;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center; padding: 24px;
+  }
+  a { color: #1462c9; }
+</style>
 </head>
-<body class="adminBody">
-
-<svg class="sprite" aria-hidden="true" focusable="false">
-  <symbol id="i-flake" viewBox="0 0 24 24">
-    <path d="M12 2.6 20.1 7.3v9.4L12 21.4 3.9 16.7V7.3Z"/>
-    <path d="M12 7.6v8.8"/><path d="M8.2 9.8 15.8 14.2"/><path d="M15.8 9.8 8.2 14.2"/>
-  </symbol>
-  <symbol id="i-phone" viewBox="0 0 24 24">
-    <path d="M8.1 3.6h-2A2.1 2.1 0 0 0 4 5.9C4 13.7 10.3 20 18.1 20a2.1 2.1 0 0 0 2.3-2.1v-2l-4.3-1.4-1.7 2.1a13.6 13.6 0 0 1-5-5l2.1-1.7Z"/>
-  </symbol>
-  <symbol id="i-msg" viewBox="0 0 24 24">
-    <path d="M20.4 12.4a7.6 7.6 0 0 1-8.2 7.5L5.4 21l1.1-4.6a7.6 7.6 0 1 1 13.9-4Z"/>
-  </symbol>
-  <symbol id="i-pin" viewBox="0 0 24 24">
-    <path d="M12 21s6.4-5.6 6.4-10.2a6.4 6.4 0 1 0-12.8 0C5.6 15.4 12 21 12 21Z"/>
-    <circle cx="12" cy="10.6" r="2.3"/>
-  </symbol>
-  <symbol id="i-refresh" viewBox="0 0 24 24">
-    <path d="M20 12a8 8 0 1 1-2.5-5.8"/>
-    <path d="M20.4 4.4v4.2h-4.2"/>
-  </symbol>
-  <symbol id="i-install" viewBox="0 0 24 24">
-    <path d="M12 3.6v10.8"/>
-    <path d="m7.8 10.6 4.2 4.2 4.2-4.2"/>
-    <path d="M4.4 17.2v1.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8v-1.4"/>
-  </symbol>
-</svg>
-
-<!-- ================================================ passphrase gate -->
-<div class="gate" id="gate">
-  <div class="gateCard">
-    <span class="mark"><svg class="markIcon"><use href="#i-flake"></use></svg></span>
-    <h1>Job board</h1>
-    <p class="muted">Staff only. Customers use the reservation form.</p>
-
-    <label class="field">
-      <span>Passphrase</span>
-      <input type="password" id="pass" autocomplete="current-password">
-    </label>
-
-    <label class="check">
-      <input type="checkbox" id="remember" checked>
-      <span>Stay signed in on this device</span>
-    </label>
-
-    <p class="err" id="gateErr" hidden></p>
-    <button class="btn primary wide" id="gateBtn">Open the board</button>
-    <button class="btn ghost wide" id="installBtn" data-install-always>
-      <svg class="dl" aria-hidden="true"><use href="#i-install"></use></svg>
-      Install this app
-    </button>
-
-    <!-- shown when config.js has no Apps Script URL yet -->
-    <div class="setupNote" id="setupNote" hidden>
-      <p><strong>Not connected to a Sheet yet.</strong></p>
-      <p>The job board reads reservations out of a Google Sheet, and one
-         hasn't been set up. Follow <code>apps_script/README_SETUP.md</code>,
-         then paste the <code>/exec</code> URL into <code>config.js</code>.</p>
-      <button class="btn ghost wide" id="demoBtn">Preview with sample data</button>
-    </div>
-  </div>
-</div>
-
-<!-- ================================================ board -->
-<div class="board" id="board" hidden>
-
-  <header class="adminBar">
-    <div class="brand">
-      <span class="mark"><svg class="markIcon"><use href="#i-flake"></use></svg></span>
-      <div>
-        <h1>Job board</h1>
-        <p class="muted sm" id="counts"></p>
-      </div>
-    </div>
-    <div class="topActions">
-      <button class="iconBtn" id="refreshBtn" title="Refresh">
-        <svg class="rf"><use href="#i-refresh"></use></svg>
-      </button>
-      <button class="callbtn" id="installBtnSm" hidden>Install</button>
-      <button class="callbtn" id="signOut">Sign out</button>
-    </div>
-  </header>
-
-  <p class="demoBanner" id="demoBanner" hidden>
-    Sample data — not connected to a Sheet. Nothing here is real and nothing saves.
-  </p>
-
-  <div class="adminTools">
-    <div class="chips" id="statusFilter"></div>
-    <input type="search" id="search" placeholder="Search name, address, phone…">
-  </div>
-
-  <!-- the only scrolling region on the page -->
-  <div class="boardScroll">
-    <main class="jobs" id="jobs"></main>
-
-    <p class="empty" id="empty" hidden></p>
-
-    <p class="verLine always">
-      <button id="appVersion" class="verBtn" title="Check for updates"></button>
-    </p>
-  </div>
-</div>
-
-<button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
-
-<!-- Shown when the browser gives us no install prompt of our own; the
-     wording is filled in per browser by wireInstall(). -->
-<div class="iosHint" id="iosHint" hidden>
-  <p><strong id="installHintTitle">Add to Home Screen</strong></p>
-  <p id="installHintBody">Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
-  <pre class="installDiag" id="installDiag" hidden></pre>
-  <button class="btn ghost sm" id="iosHintClose">Got it</button>
-</div>
-
-<script src="config.js"></script>
-<script src="updater.js"></script>
-<script src="admin.js"></script>
+<body>
+  <p>The job board moved.<br><a href="board/">Open it here</a></p>
 </body>
 </html>

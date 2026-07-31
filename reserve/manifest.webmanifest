@@ -2,7 +2,7 @@
   "name": "Northern Edge Snow Removal",
   "short_name": "Snow Removal",
   "description": "Reserve driveway plowing, sidewalk clearing, and ice melt.",
-  "id": "/",
+  "id": "/snow_removal/reserve/",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
@@ -12,19 +12,19 @@
   "categories": ["business", "utilities"],
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "../icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "../icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/icon-maskable-512.png",
+      "src": "../icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -35,7 +35,7 @@
       "name": "New reservation",
       "short_name": "Reserve",
       "url": ".",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "../icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -7,7 +7,7 @@ Moves all three version strings at once.
 They have to agree:
 
     updater.js   APP_VERSION  what the app believes it is
-    sw.js        VERSION      names the cache; changing it evicts old files
+    sw-core.js   VERSION      names the cache; changing it evicts old files
     version.txt  the string the running app polls to notice an update
 
 If version.txt drifts behind, the app offers an update that never resolves.
@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 TARGETS = [
     (ROOT / "updater.js", re.compile(r'(APP_VERSION\s*=\s*")([^"]+)(")')),
-    (ROOT / "sw.js", re.compile(r'(VERSION\s*=\s*"v)([^"]+)(")')),
+    (ROOT / "sw-core.js", re.compile(r'(VERSION\s*=\s*"v)([^"]+)(")')),
 ]
 VERSION_TXT = ROOT / "version.txt"
 

@@ -135,7 +135,7 @@ Property always wins over the value in the file):
 3. Property `ADMIN_PASSPHRASE`, value your passphrase. **Save**.
 4. **Deploy → Manage deployments → pencil → New version → Deploy.**
 
-Then open `admin.html` and sign in. `NOTIFY_EMAIL`, `NOTIFY_SMS`, and
+Then open `board/` and sign in. `NOTIFY_EMAIL`, `NOTIFY_SMS`, and
 `SHARED_SECRET` work the same way — a Script Property beats the constant in
 the file, so anything you'd rather not commit can go there too.
 

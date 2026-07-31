@@ -131,8 +131,8 @@ function doGet() {
  * Everything posts here. Three actions:
  *
  *   (none)   a customer submitting the public form. Anonymous by design.
- *   list     admin.html loading the job board.       Passphrase required.
- *   update   admin.html changing a status or note.   Passphrase required.
+ *   list     board/    loading the job board.       Passphrase required.
+ *   update   board/    changing a status or note.   Passphrase required.
  */
 function doPost(e) {
   // One writer at a time, so two people submitting at once cannot land on
