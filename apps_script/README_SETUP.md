@@ -54,7 +54,18 @@ Save (the disk icon, or Ctrl+S).
    - **Execute as: Me** — so the script can write to *your* Sheet.
    - **Who has access: Anyone** — so a customer who isn't logged into Google
      can submit. This is required; the form is public.
-4. **Deploy**, then **copy the Web app URL**. It ends in `/exec`.
+4. **Deploy**, then **copy the Web app URL**. It ends in `/exec` and looks
+   like `https://script.google.com/macros/s/AKfycbx9K2...long-id.../exec`
+
+> **The URL does not exist until you deploy.** Google generates it at that
+> moment — there's nowhere to look it up beforehand. If you already deployed
+> and closed the dialog, it's under **Deploy → Manage deployments →** click
+> the deployment; the Web app URL is there with a copy button.
+
+> **`/exec`, not `/dev`.** The editor will also show you a URL ending in
+> `/dev`. That one serves your live editor copy and only works while *you*
+> are signed into Google, so a customer hitting the form would just get an
+> error. `/exec` serves the deployed version to everyone.
 
 > **"Anyone" does not make your Sheet public.** It only means anyone can
 > *call this script*. The script only ever appends a row — it never returns
