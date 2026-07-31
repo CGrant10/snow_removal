@@ -19,17 +19,18 @@ let rows = [];
 let statuses = ["New", "Quoted", "Scheduled", "Done", "Declined"];
 let filter = "open";          // "open" = anything not Done/Declined
 let query = "";
+let demo = false;             // showing sample data, not a real Sheet
+
+const connected = () =>
+  /^https:\/\/script\.google\.com\//.test(CFG.delivery.gsheet.url || "");
 
 /* ------------------------------------------------------------ api */
 async function call(action, extra) {
-  const url = CFG.delivery.gsheet.url;
-  if (!/^https:\/\/script\.google\.com\//.test(url)) {
-    throw new Error("no Apps Script URL in config.js");
-  }
+  if (!connected()) throw new Error("not connected");
 
   // text/plain for the same reason as the form: Apps Script does not
   // answer CORS preflights.
-  const res = await fetch(url, {
+  const res = await fetch(CFG.delivery.gsheet.url, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ action, passphrase: pass, ...extra }),
@@ -55,11 +56,72 @@ function boot() {
   });
 
   wireUpdater([$("appVersion")], $("updatePill"));
+  $("demoBtn").addEventListener("click", startDemo);
+
+  // No Sheet wired up yet: say so plainly instead of failing on sign-in,
+  // and offer the sample board so the thing can still be shown to someone.
+  if (!connected()) {
+    $("setupNote").hidden = false;
+    $("gateBtn").disabled = true;
+    $("pass").disabled = true;
+    return;
+  }
 
   if (saved) {
     pass = saved;
     openBoard();
   }
+}
+
+/* ------------------------------------------------------------ demo */
+const DEMO_ROWS = [
+  {
+    _row: 2, Received: new Date(Date.now() - 55 * 60e3).toISOString(),
+    Reference: "SNO-7K2QP", Status: "New",
+    Name: "Marnie Vogel", Phone: "701-555-0144", Email: "marnie@example.com",
+    "Text OK": "Yes", Address: "1420 N 12th St", City: "Fargo", ZIP: "58102",
+    Services: "Driveway clearing, Sidewalks & steps, Ice melt / sanding",
+    Plan: "Per visit, automatic", Trigger: "2 inches",
+    "Start date": "2026-11-14", "Time of day": "Before 7 AM",
+    Driveway: "2–3 cars", Surface: "Gravel",
+    Flags: "Dog in the yard, Do not use salt",
+    "Snow goes": "north side, away from the mailbox",
+    "Crew notes": "Gate code 4412. Park on the street.",
+    Estimate: 95, "Estimate basis": "per visit", "Office notes": "",
+  },
+  {
+    _row: 3, Received: new Date(Date.now() - 27 * 3600e3).toISOString(),
+    Reference: "SNO-3B9XR", Status: "Scheduled",
+    Name: "Karl Bergstrom", Phone: "701-555-0166", Email: "",
+    "Text OK": "No", Address: "7 Prairie Loop", City: "West Fargo", ZIP: "58078",
+    Services: "Driveway clearing", Plan: "Season contract", Trigger: "",
+    "Start date": "2026-11-01", "Time of day": "Anytime",
+    Driveway: "Long / rural", Surface: "Gravel",
+    Flags: "Steep or sloped drive", "Snow goes": "", "Crew notes": "",
+    Estimate: 485, "Estimate basis": "per month",
+    "Office notes": "Signed for the season",
+  },
+  {
+    _row: 4, Received: new Date(Date.now() - 3 * 86400e3).toISOString(),
+    Reference: "SNO-QQ104", Status: "Done",
+    Name: "Dana Halvorson", Phone: "701-555-0121", Email: "dana@example.com",
+    "Text OK": "Yes", Address: "305 Elm St N", City: "Fargo", ZIP: "58102",
+    Services: "Ice melt / sanding", Plan: "One time", Trigger: "",
+    "Start date": "2026-11-02", "Time of day": "Morning",
+    Driveway: "", Surface: "Concrete", Flags: "", "Snow goes": "",
+    "Crew notes": "", Estimate: 20, "Estimate basis": "per visit",
+    "Office notes": "Paid cash",
+  },
+];
+
+function startDemo() {
+  demo = true;
+  rows = DEMO_ROWS.map((r) => ({ ...r }));
+  $("gate").hidden = true;
+  $("board").hidden = false;
+  $("demoBanner").hidden = false;
+  renderFilters();
+  render();
 }
 
 async function signIn() {
@@ -78,9 +140,15 @@ async function signIn() {
     openBoard();
   } catch (ex) {
     pass = "";
-    err.textContent = ex.message === "wrong passphrase"
-      ? "That passphrase didn't work."
-      : `Couldn't reach the sheet: ${ex.message}`;
+    err.textContent = {
+      "wrong passphrase": "That passphrase didn't work.",
+      "admin is switched off":
+        "The script has no ADMIN_PASSPHRASE set yet. Set one, then deploy a new version.",
+      "run setup() first":
+        "The Sheet has no Reservations tab yet. Run setup() in the Apps Script editor.",
+      "not connected":
+        "No Apps Script URL in config.js yet — set up the Sheet first.",
+    }[ex.message] || `Couldn't reach the Sheet: ${ex.message}`;
     err.hidden = false;
   } finally {
     btn.disabled = false;
@@ -93,6 +161,8 @@ function signOut() {
   sessionStorage.removeItem(KEY);
   pass = "";
   rows = [];
+  demo = false;
+  $("demoBanner").hidden = true;
   $("board").hidden = true;
   $("gate").hidden = false;
   $("pass").value = "";
@@ -106,6 +176,7 @@ function openBoard() {
 
 /* ------------------------------------------------------------ load */
 async function load(manual) {
+  if (demo) { render(); return; }        // nothing behind the sample rows
   const btn = $("refreshBtn");
   btn.classList.add("spin");
   try {
@@ -260,6 +331,15 @@ function jobCard(r) {
   const saved = el.querySelector(".saved");
 
   const push = async (patch) => {
+    if (demo) {
+      // Reflect it on screen, but never pretend it was written anywhere.
+      Object.assign(r, patch.status ? { Status: patch.status } : {},
+                       "officeNotes" in patch ? { "Office notes": patch.officeNotes } : {});
+      toast("Demo — not saved anywhere");
+      if (patch.status) { renderFilters(); render(); }
+      return;
+    }
+
     el.classList.add("saving");
     try {
       await call("update", { reference: r.Reference, ...patch });

@@ -762,8 +762,38 @@ input[type="date"] { max-width: 240px; }
 .gateCard .check { border: none; padding: 0; font-size: 14px; }
 .btn.wide { width: 100%; margin-top: 18px; }
 
+.setupNote {
+  margin-top: 22px; padding-top: 20px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.setupNote p { font-size: 14px; color: var(--ink-2); }
+.setupNote p + p { margin-top: 6px; }
+.setupNote strong { color: var(--ink); }
+.setupNote code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
 /* ---------------------------------------------------------- bar */
 .board { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.demoBanner {
+  flex: none;
+  padding: 10px 16px;
+  background: #fdf3d8;
+  color: #6b4c07;
+  border-bottom: 1px solid #e8d49a;
+  font-size: 13.5px; font-weight: 600;
+  text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+  .demoBanner { background: #33280c; color: #f0d68d; border-bottom-color: #4d3d13; }
+}
 
 .adminBar {
   flex: none;

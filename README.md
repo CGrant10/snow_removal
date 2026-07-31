@@ -246,10 +246,14 @@ Nothing on the public form links to it, and it carries `noindex` so search
 engines skip it. Bookmark it, or install it to a home screen for a one-tap
 job board.
 
-**It won't let you in until two things are true:** `mode: "gsheet"` with a real
-`/exec` URL in `config.js`, and the script deployed. The passphrase is
-currently **`snowadmin1`** for testing — and since `Code.gs` is public, treat
-it as public. [The setup doc](apps_script/README_SETUP.md) covers moving it to
+**The board is a window onto the Sheet, so the Sheet has to exist first.**
+Until `config.js` has a real `/exec` URL, the sign-in is disabled and the page
+says so, with a **Preview with sample data** button — three fake reservations,
+a loud banner, and nothing that saves. Enough to show someone what it does
+before any of it is real.
+
+Once it's wired up, the passphrase is currently **`snowadmin1`** for testing —
+and since `Code.gs` is public, treat it as public. [The setup doc](apps_script/README_SETUP.md) covers moving it to
 a Script Property, which stays in the Google account and never touches the
 repo; do that before real customer data lands in the Sheet.
 

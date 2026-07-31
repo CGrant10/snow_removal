@@ -52,6 +52,15 @@
 
     <p class="err" id="gateErr" hidden></p>
     <button class="btn primary wide" id="gateBtn">Open the board</button>
+
+    <!-- shown when config.js has no Apps Script URL yet -->
+    <div class="setupNote" id="setupNote" hidden>
+      <p><strong>Not connected to a Sheet yet.</strong></p>
+      <p>The job board reads reservations out of a Google Sheet, and one
+         hasn't been set up. Follow <code>apps_script/README_SETUP.md</code>,
+         then paste the <code>/exec</code> URL into <code>config.js</code>.</p>
+      <button class="btn ghost wide" id="demoBtn">Preview with sample data</button>
+    </div>
   </div>
 </div>
 
@@ -73,6 +82,10 @@
       <button class="callbtn" id="signOut">Sign out</button>
     </div>
   </header>
+
+  <p class="demoBanner" id="demoBanner" hidden>
+    Sample data — not connected to a Sheet. Nothing here is real and nothing saves.
+  </p>
 
   <div class="adminTools">
     <div class="chips" id="statusFilter"></div>
