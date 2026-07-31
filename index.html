@@ -141,7 +141,7 @@
       <div class="railContact">
         <a id="bizPhone" href="#"></a>
         <p id="bizHours" class="muted sm"></p>
-        <p id="appVersion" class="muted sm ver"></p>
+        <button id="appVersion" class="verBtn" title="Check for updates"></button>
       </div>
     </div>
   </aside>
@@ -281,6 +281,10 @@
         <button class="btn ghost" id="againBtn">Book another property</button>
       </section>
 
+      <!-- mobile only; the sidebar carries this on desktop -->
+      <p class="verLine">
+        <button id="appVersionSm" class="verBtn" title="Check for updates"></button>
+      </p>
     </main>
 
     <footer class="navbar">
@@ -299,9 +303,10 @@
 </div>
 
 <!-- shown when a new version has been downloaded in the background -->
-<button class="updatePill" id="updatePill" hidden>Update available — tap to reload</button>
+<button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
 
 <script src="config.js"></script>
+<script src="updater.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -54,6 +54,8 @@ function boot() {
     render();
   });
 
+  wireUpdater([$("appVersion")], $("updatePill"));
+
   if (saved) {
     pass = saved;
     openBoard();

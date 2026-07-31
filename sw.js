@@ -10,7 +10,7 @@
    a slow load. The cache is the offline fallback, not the fast path.
    ============================================================ */
 
-const VERSION = "v1.1.0";
+const VERSION = "v1.2.1";
 const CACHE = `snow-${VERSION}`;
 
 const SHELL = [
@@ -19,6 +19,7 @@ const SHELL = [
   "styles.css",
   "app.js",
   "config.js",
+  "updater.js",
   "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -55,6 +56,16 @@ self.addEventListener("fetch", (e) => {
   // and must never be intercepted, cached, or replayed.
   if (request.method !== "GET") return;
   if (new URL(request.url).origin !== self.location.origin) return;
+
+  // version.txt is always live and never cached — it IS the update
+  // mechanism. Cache it once and the app can never learn it's outdated.
+  if (request.url.includes("version.txt")) {
+    e.respondWith(
+      fetch(request, { cache: "no-cache" })
+        .catch(() => new Response("", { status: 504 }))
+    );
+    return;
+  }
 
   e.respondWith(
     fetch(request)

@@ -77,12 +77,36 @@ screen, and it retries automatically the moment they're back online. A
 background queue that says "sent!" and silently fails would be worse than
 useless to a business.
 
-### Version bumps
+### The update button
 
-`VERSION` in [app.js](app.js) and `VERSION` in [sw.js](sw.js) must move
-together on every deploy. The one in `sw.js` names the cache, and changing it
-is what makes installed apps throw away the old files. Forget it and anyone
-who installed the app keeps running last week's prices.
+Both pages show their version — in the sidebar on desktop, at the bottom on a
+phone. Tapping it checks for a new build and installs it: clears the caches,
+nudges the service worker, and reloads cache-busted. If a background poll
+finds a new version first (on window focus, and every two minutes), an
+**Update available** pill appears so nobody has to think to check.
+
+The install deliberately does **not** unregister the service worker.
+Unregistering makes the reload uncontrolled, so the browser's own HTTP cache
+serves the old files and the update looks like it did nothing until the app is
+closed and reopened.
+
+### Version bumps — all three, every time
+
+| Where | What it does |
+|---|---|
+| `APP_VERSION` in [updater.js](updater.js) | what the running app believes it is |
+| `VERSION` in [sw.js](sw.js) | names the cache; changing it evicts old files |
+| [version.txt](version.txt) | what the running app polls to notice an update |
+
+They have to agree. If `version.txt` drifts behind, the app offers an update
+that never resolves; if it runs ahead, nobody is ever told there's a new one.
+Don't edit them by hand:
+
+```bash
+python tools/bump_version.py 1.2.2
+```
+
+Run it with no argument to print all three and check they're in sync.
 
 **Icons are a custom inline SVG sprite** at the top of `index.html` — no emoji,
 no icon library, nothing that shows up in every other app. They are monoline,
@@ -162,6 +186,24 @@ it does not make the Sheet public), and remembering that editing `Code.gs`
 does nothing until you deploy a **new version**.
 
 ## The job board (`admin.html`)
+
+**Getting to it:** it's a page, not a login on the form — just add
+`/admin.html` to wherever the app is hosted.
+
+| Where | URL |
+|---|---|
+| Local | `http://localhost:8123/admin.html` |
+| GitHub Pages | `https://cgrant10.github.io/snow_removal/admin.html` |
+| Custom domain | `https://yourdomain.com/admin.html` |
+
+Nothing on the public form links to it, and it carries `noindex` so search
+engines skip it. Bookmark it, or install it to a home screen for a one-tap
+job board.
+
+**It won't let you in until three things are true:** `mode: "gsheet"` with a
+real `/exec` URL in `config.js`, an `ADMIN_PASSPHRASE` set in `Code.gs`, and a
+new deployment made after setting it. With the passphrase empty — the shipped
+default — every admin request is refused.
 
 Same Sheet, staff side. Requires the `gsheet` delivery mode and an
 `ADMIN_PASSPHRASE` set in `Code.gs` — leave it empty and the admin endpoints

@@ -5,8 +5,8 @@
 const CFG = window.SNOW_CONFIG;
 const $ = (id) => document.getElementById(id);
 
-/* Bump together with VERSION in sw.js on every deploy. */
-const VERSION = "1.1.0";
+/* APP_VERSION lives in updater.js, alongside the update checker. */
+const VERSION = APP_VERSION;
 
 const STEPS = 5;              // 0..4 are input steps, 5 is the done screen
 const STEP_NAMES = ["Services", "Property", "Schedule", "Contact", "Review"];
@@ -52,7 +52,7 @@ function boot() {
   renderTriggers();
   renderWindows();
 
-  $("appVersion").textContent = "v" + VERSION;
+  wireUpdater([$("appVersion"), $("appVersionSm")], $("updatePill"));
 
   $("startDate").valueAsDate = new Date();
   $("nextBtn").addEventListener("click", next);
@@ -61,7 +61,6 @@ function boot() {
   $("pileSpot").addEventListener("input", (e) => (state.pileSpot = e.target.value));
 
   installer();
-  serviceWorker();
   show(0);
 }
 
@@ -109,38 +108,8 @@ function installer() {
   if (isIOS) showButtons(true);                // no event ever comes on iOS
 }
 
-/* ------------------------------------------------------------ updates */
-function serviceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  // file:// has no service worker support and would only throw.
-  if (location.protocol === "file:") return;
-
-  window.addEventListener("load", async () => {
-    try {
-      const reg = await navigator.serviceWorker.register("sw.js");
-
-      reg.addEventListener("updatefound", () => {
-        const fresh = reg.installing;
-        if (!fresh) return;
-        fresh.addEventListener("statechange", () => {
-          // A controller already exists, so this is an update rather than
-          // the first install. Offer it — never reload from under someone
-          // who is halfway through the form.
-          if (fresh.state === "installed" && navigator.serviceWorker.controller) {
-            $("updatePill").hidden = false;
-          }
-        });
-      });
-
-      $("updatePill").addEventListener("click", () => {
-        reg.waiting && reg.waiting.postMessage("skip-waiting");
-        location.reload();
-      });
-    } catch (err) {
-      console.warn("service worker registration failed", err);
-    }
-  });
-}
+/* Service worker registration and the update flow live in updater.js,
+   shared with the job board. */
 
 /* ------------------------------------------------------------ render */
 /* `multi` squares off the tick mark, the way a checkbox reads next to a radio. */
