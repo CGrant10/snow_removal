@@ -56,6 +56,7 @@ function boot() {
   });
 
   wireUpdater([$("appVersion")], $("updatePill"));
+  wireInstall([$("installBtn"), $("installBtnSm")], $("iosHint"), $("iosHintClose"));
   $("demoBtn").addEventListener("click", startDemo);
 
   // No Sheet wired up yet: say so plainly instead of failing on sign-in,
@@ -241,6 +242,19 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
+/* Sheets parses "2026-11-14" into a real Date, and the script hands Dates
+   back as ISO strings — so the start date arrives looking like
+   "2026-11-14T06:00:00.000Z". Show the day, not the timestamp. */
+function dayOnly(v) {
+  if (!v) return "";
+  const s = String(v);
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(s)) return s;   // already a plain date
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString(undefined,
+    { weekday: "short", month: "short", day: "numeric" });
+}
+
 function when(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -307,7 +321,7 @@ function jobCard(r) {
     <div class="details">
       ${detail("Services", r.Services)}
       ${detail("Plan", r.Plan + (r.Trigger ? ` · after ${r.Trigger}` : ""))}
-      ${detail("When", [r["Start date"], r["Time of day"]].filter(Boolean).join(" · "))}
+      ${detail("When", [dayOnly(r["Start date"]), r["Time of day"]].filter(Boolean).join(" · "))}
       ${detail("Driveway", [r.Driveway, r.Surface].filter(Boolean).join(" · "))}
       ${detail("Watch for", r.Flags)}
       ${detail("Snow goes", r["Snow goes"])}

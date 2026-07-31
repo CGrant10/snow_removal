@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.5.0";
+const APP_VERSION = "1.6.0";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -140,6 +140,53 @@ function wireUpdater(buttons, pill) {
   checkForUpdate();
   window.addEventListener("focus", checkForUpdate);
   setInterval(checkForUpdate, 120_000);
+}
+
+/* ------------------------------------------------------------ install
+   Chrome and Edge fire beforeinstallprompt and let us show a real button.
+   iOS Safari never has, so there the same button explains the
+   Share > Add to Home Screen route instead. Shared by both pages.      */
+function wireInstall(buttons, hint, hintClose) {
+  const live = buttons.filter(Boolean);
+  if (!live.length) return;
+
+  const installed =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+  if (installed) return;                       // already on their home screen
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const show = (on) => live.forEach((b) => (b.hidden = !on));
+  let prompt = null;
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();                        // we choose when to ask
+    prompt = e;
+    show(true);
+  });
+
+  window.addEventListener("appinstalled", () => {
+    prompt = null;
+    show(false);
+    if (hint) hint.hidden = true;
+  });
+
+  live.forEach((b) => b.addEventListener("click", async () => {
+    if (prompt) {
+      prompt.prompt();
+      await prompt.userChoice;                 // resolves whichever way
+      prompt = null;
+      show(false);
+      return;
+    }
+    if (hint) hint.hidden = false;             // iOS, or prompt already used
+  }));
+
+  if (hintClose) {
+    hintClose.addEventListener("click", () => (hint.hidden = true));
+  }
+
+  if (isIOS) show(true);                       // no event ever comes on iOS
 }
 
 /* Registered here so both the form and the job board are installable and

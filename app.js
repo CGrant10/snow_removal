@@ -60,56 +60,12 @@ function boot() {
   $("againBtn").addEventListener("click", () => location.reload());
   $("pileSpot").addEventListener("input", (e) => (state.pileSpot = e.target.value));
 
-  installer();
+  wireInstall([$("installBtn"), $("installBtnSm")], $("iosHint"), $("iosHintClose"));
   show(0);
 }
 
-/* ------------------------------------------------------------ install
-   Chrome and Edge fire beforeinstallprompt and let us show a real
-   button. iOS Safari never has, so there the same button explains the
-   Share > Add to Home Screen route instead.                           */
-function installer() {
-  const buttons = [$("installBtn"), $("installBtnSm")];
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const installed =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true;
-
-  let prompt = null;
-  const showButtons = (on) => buttons.forEach((b) => (b.hidden = !on));
-
-  if (installed) return;                       // already on their home screen
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();                        // we choose when to ask
-    prompt = e;
-    showButtons(true);
-  });
-
-  window.addEventListener("appinstalled", () => {
-    prompt = null;
-    showButtons(false);
-    $("iosHint").hidden = true;
-  });
-
-  buttons.forEach((b) => b.addEventListener("click", async () => {
-    if (prompt) {
-      prompt.prompt();
-      await prompt.userChoice;                 // resolves whichever way
-      prompt = null;
-      showButtons(false);
-      return;
-    }
-    $("iosHint").hidden = false;               // iOS, or prompt already used
-  }));
-
-  $("iosHintClose").addEventListener("click", () => ($("iosHint").hidden = true));
-
-  if (isIOS) showButtons(true);                // no event ever comes on iOS
-}
-
-/* Service worker registration and the update flow live in updater.js,
-   shared with the job board. */
+/* Install, service worker registration, and the update flow all live in
+   updater.js, shared with the job board. */
 
 /* ------------------------------------------------------------ render */
 /* `multi` squares off the tick mark, the way a checkbox reads next to a radio. */

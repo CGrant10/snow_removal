@@ -31,6 +31,11 @@
     <path d="M20 12a8 8 0 1 1-2.5-5.8"/>
     <path d="M20.4 4.4v4.2h-4.2"/>
   </symbol>
+  <symbol id="i-install" viewBox="0 0 24 24">
+    <path d="M12 3.6v10.8"/>
+    <path d="m7.8 10.6 4.2 4.2 4.2-4.2"/>
+    <path d="M4.4 17.2v1.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8v-1.4"/>
+  </symbol>
 </svg>
 
 <!-- ================================================ passphrase gate -->
@@ -52,6 +57,10 @@
 
     <p class="err" id="gateErr" hidden></p>
     <button class="btn primary wide" id="gateBtn">Open the board</button>
+    <button class="btn ghost wide" id="installBtn" hidden>
+      <svg class="dl" aria-hidden="true"><use href="#i-install"></use></svg>
+      Install this app
+    </button>
 
     <!-- shown when config.js has no Apps Script URL yet -->
     <div class="setupNote" id="setupNote" hidden>
@@ -79,6 +88,7 @@
       <button class="iconBtn" id="refreshBtn" title="Refresh">
         <svg class="rf"><use href="#i-refresh"></use></svg>
       </button>
+      <button class="callbtn" id="installBtnSm" hidden>Install</button>
       <button class="callbtn" id="signOut">Sign out</button>
     </div>
   </header>
@@ -105,6 +115,13 @@
 </div>
 
 <button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
+
+<!-- iOS has no install prompt; the Install button reveals this instead -->
+<div class="iosHint" id="iosHint" hidden>
+  <p><strong>Add to Home Screen</strong></p>
+  <p>Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
+  <button class="btn ghost sm" id="iosHintClose">Got it</button>
+</div>
 
 <script src="config.js"></script>
 <script src="updater.js"></script>

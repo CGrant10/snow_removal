@@ -99,7 +99,9 @@ lands just under 900px and gets the phone layout with a centred 720px column
 Both surfaces install to a phone or desktop home screen and run without
 browser chrome. On Chrome/Edge/Android an **Install** button appears once the
 browser offers it; on iOS the same button explains the Share → Add to Home
-Screen route, because Safari has never had an install prompt.
+Screen route, because Safari has never had an install prompt. The form shows
+it in the sidebar and the header; the job board shows it on the sign-in card
+and in the top bar, so the owner gets a one-tap job board on his phone.
 
 - **Offline**: the shell is cached, so the form opens and can be filled out
   with no signal. Sending still needs a connection — see below.
