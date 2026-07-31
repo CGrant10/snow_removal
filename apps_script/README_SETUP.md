@@ -14,8 +14,20 @@ driver, work it from the Sheets app on your phone.
 1. Go to [sheets.new](https://sheets.new). Name it something like
    *Snow Reservations 2026*.
 2. **Extensions → Apps Script**. A code editor opens in a new tab.
-3. Delete the `function myFunction() {}` stub that's already there.
-4. Paste in the entire contents of [Code.gs](Code.gs).
+3. Click in the code area, press **Ctrl+A**, then **Delete**. The editor must
+   be completely empty.
+
+   > **Do not paste inside the `function myFunction() {}` stub.** This is the
+   > single easiest thing to get wrong. If the code ends up nested inside that
+   > function, none of it exists as far as Google is concerned, and the
+   > deployed URL answers `Script function not found: doPost`.
+
+4. Paste in the entire contents of [Code.gs](Code.gs). The first line should
+   be `/**` and the last should be the closing `}` of `notify`.
+
+   **Check it took:** the function dropdown in the toolbar should now list
+   `setup`, `doGet`, `doPost`, `handleList`, and friends. If it only shows
+   `myFunction`, the paste went inside the stub — redo step 3.
 
 ## 2. Set your notification addresses
 
