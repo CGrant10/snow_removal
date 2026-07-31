@@ -201,9 +201,11 @@ engines skip it. Bookmark it, or install it to a home screen for a one-tap
 job board.
 
 **It won't let you in until three things are true:** `mode: "gsheet"` with a
-real `/exec` URL in `config.js`, an `ADMIN_PASSPHRASE` set in `Code.gs`, and a
-new deployment made after setting it. With the passphrase empty — the shipped
-default — every admin request is refused.
+real `/exec` URL in `config.js`, an `ADMIN_PASSPHRASE` set as a **Script
+Property** (see [the setup doc](apps_script/README_SETUP.md) — never typed
+into `Code.gs`, which is public), and a new deployment made after setting it.
+There is no default passphrase; while it's unset, every admin request is
+refused.
 
 Same Sheet, staff side. Requires the `gsheet` delivery mode and an
 `ADMIN_PASSPHRASE` set in `Code.gs` — leave it empty and the admin endpoints
@@ -219,7 +221,9 @@ are switched off entirely.
   goes, and what the customer wrote.
 
 The passphrase is typed, not embedded — it's held in this browser and checked
-by Apps Script on every request. Wrong guesses get a delay.
+by Apps Script on every request. Wrong guesses get a delay. On the server side
+it lives in a Script Property, so it exists only inside the Google account and
+never in this repo.
 
 ### Locking down the admin page
 

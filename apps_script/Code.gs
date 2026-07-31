@@ -29,16 +29,36 @@ var SETTINGS = {
   // bump, not real security.
   SHARED_SECRET: '',
 
-  // REQUIRED to use admin.html. Anyone who knows the /exec URL and this
-  // passphrase can read every customer's name, address, and phone number.
-  // Make it long, don't reuse a password, and see the "Locking down the
-  // admin page" section of README_SETUP.md for the stronger option.
-  // Empty means the admin endpoints are switched off entirely.
+  // LEAVE THIS EMPTY. This file lives in a public git repo — a passphrase
+  // typed here gets pushed to GitHub. Set it as a Script Property instead:
+  //
+  //   Apps Script editor -> Project Settings (gear)
+  //   -> Script Properties -> Add: ADMIN_PASSPHRASE = your-passphrase
+  //
+  // That value stays inside your Google account and never touches the repo.
+  // See "Setting the admin passphrase" in README_SETUP.md.
   ADMIN_PASSPHRASE: '',
 
   // Status values offered as a dropdown in column C.
   STATUSES: ['New', 'Quoted', 'Scheduled', 'Done', 'Declined'],
 };
+
+/**
+ * Reads a setting, preferring a Script Property over the constant above.
+ *
+ * Script Properties live in your Google account, so secrets stay out of the
+ * repo. Anything set there wins; SETTINGS is the fallback for the values
+ * that are not sensitive.
+ */
+function setting(name) {
+  try {
+    var v = PropertiesService.getScriptProperties().getProperty(name);
+    if (v !== null && v !== '') return v;
+  } catch (err) {
+    // Properties unavailable (rare) — fall through to the constant.
+  }
+  return SETTINGS[name];
+}
 
 /* ============================ SHEET LAYOUT ============================ */
 
@@ -133,10 +153,11 @@ function doPost(e) {
 
     // ---- admin actions, behind the passphrase ----
     if (p.action === 'list' || p.action === 'update') {
-      if (!SETTINGS.ADMIN_PASSPHRASE) {
+      var adminPass = setting('ADMIN_PASSPHRASE');
+      if (!adminPass) {
         return json({ ok: false, error: 'admin is switched off' });
       }
-      if (p.passphrase !== SETTINGS.ADMIN_PASSPHRASE) {
+      if (p.passphrase !== adminPass) {
         // Slows a script guessing passphrases without annoying a human who
         // fat-fingered theirs once.
         Utilities.sleep(1200);
@@ -146,7 +167,8 @@ function doPost(e) {
     }
 
     // ---- anonymous: a customer submitting the form ----
-    if (SETTINGS.SHARED_SECRET && p.secret !== SETTINGS.SHARED_SECRET) {
+    var secret = setting('SHARED_SECRET');
+    if (secret && p.secret !== secret) {
       return json({ ok: false, error: 'bad secret' });
     }
 
@@ -218,6 +240,7 @@ function handleUpdate(p) {
   if (!p.reference) return json({ ok: false, error: 'no reference' });
 
   if (p.status && SETTINGS.STATUSES.indexOf(p.status) === -1) {
+    // STATUSES stays a constant — it has to match the Sheet's dropdown.
     return json({ ok: false, error: 'unknown status' });
   }
 
@@ -330,15 +353,20 @@ function notify(p) {
     var subject = 'Snow reservation ' + (p.reference || '') +
                   ' - ' + (prop.address || '');
 
-    if (SETTINGS.NOTIFY_EMAIL) {
-      MailApp.sendEmail(SETTINGS.NOTIFY_EMAIL, subject, asText(p));
+    // Both go through setting(), so they can be moved into Script
+    // Properties too if you'd rather not have an address in the repo.
+    var email = setting('NOTIFY_EMAIL');
+    var sms = setting('NOTIFY_SMS');
+
+    if (email) {
+      MailApp.sendEmail(email, subject, asText(p));
     }
 
-    if (SETTINGS.NOTIFY_SMS) {
+    if (sms) {
       // Carrier gateways truncate hard, so send only what you need to
       // decide whether to call back right now.
       var c = p.customer || {};
-      MailApp.sendEmail(SETTINGS.NOTIFY_SMS, '',
+      MailApp.sendEmail(sms, '',
           [p.reference, c.name, c.phone, prop.address, prop.city]
               .filter(String).join(' '));
     }

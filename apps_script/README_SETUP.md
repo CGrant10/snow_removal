@@ -95,18 +95,28 @@ Apps Script keeps serving the *deployed* version, not what's in the editor.
 After editing you must **Deploy → Manage deployments → pencil icon → Version:
 New version → Deploy**. Same URL, new code. This trips up everyone once.
 
-## Turning on the job board (admin.html)
+## Setting the admin passphrase
 
-The repo ships a staff page — filterable job board, tap-to-call, status
-changes — at `admin.html`. To switch it on, set a passphrase in `Code.gs`:
+There is no default passphrase. `ADMIN_PASSPHRASE` ships empty, and while
+it's empty every admin request is refused — that's the safe default, not an
+oversight. You choose one.
 
-```js
-ADMIN_PASSPHRASE: 'something-long-you-do-not-reuse',
-```
+**Do not type it into `Code.gs`.** That file is in a public git repo; a
+passphrase committed there is on the internet. Put it in a Script Property,
+which lives in your Google account and never touches the repo:
 
-Deploy a new version (see the section above — editing alone does nothing),
-then open `admin.html` and sign in with it. Leave the setting empty and the
-admin endpoints refuse every request, which is the right default.
+1. In the Apps Script editor, click **Project Settings** (the gear, left side).
+2. Scroll to **Script Properties** → **Add script property**.
+3. Property `ADMIN_PASSPHRASE`, value your passphrase. **Save**.
+4. **Deploy → Manage deployments → pencil → New version → Deploy.**
+
+Then open `admin.html` and sign in. `NOTIFY_EMAIL`, `NOTIFY_SMS`, and
+`SHARED_SECRET` work the same way — a Script Property beats the constant in
+the file, so anything you'd rather not commit can go there too.
+
+Pick something long and don't reuse it. Three or four unrelated words beats a
+short scramble: `north-forty-plow-2026` is fine, `snow1` is not. Everyone who
+uses the board shares it, so changing it signs everybody out.
 
 **Know what this is.** Anyone with the `/exec` URL and that passphrase can
 read every customer's name, address, and phone number. Wrong guesses get a
