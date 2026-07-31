@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.6.1";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -144,8 +144,13 @@ function wireUpdater(buttons, pill) {
 
 /* ------------------------------------------------------------ install
    Chrome and Edge fire beforeinstallprompt and let us show a real button.
-   iOS Safari never has, so there the same button explains the
-   Share > Add to Home Screen route instead. Shared by both pages.      */
+   iOS Safari never has, and Firefox never will, so there the same button
+   explains that browser's own route instead. Shared by both pages.
+
+   Buttons marked data-install-always stay visible even before (or without)
+   a prompt event — that's the one on the job board's sign-in card, where
+   staff go looking for it. The compact header buttons only appear once a
+   real prompt is in hand.                                              */
 function wireInstall(buttons, hint, hintClose) {
   const live = buttons.filter(Boolean);
   if (!live.length) return;
@@ -153,9 +158,12 @@ function wireInstall(buttons, hint, hintClose) {
   const installed =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
-  if (installed) return;                       // already on their home screen
+  if (installed) {                             // already on their home screen
+    live.forEach((b) => (b.hidden = true));
+    return;
+  }
 
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const always = live.filter((b) => b.hasAttribute("data-install-always"));
   const show = (on) => live.forEach((b) => (b.hidden = !on));
   let prompt = null;
 
@@ -177,16 +185,57 @@ function wireInstall(buttons, hint, hintClose) {
       await prompt.userChoice;                 // resolves whichever way
       prompt = null;
       show(false);
+      always.forEach((x) => (x.hidden = false));
       return;
     }
-    if (hint) hint.hidden = false;             // iOS, or prompt already used
+    showInstallHint(hint);                     // no prompt: explain the route
   }));
 
   if (hintClose) {
     hintClose.addEventListener("click", () => (hint.hidden = true));
   }
 
-  if (isIOS) show(true);                       // no event ever comes on iOS
+  always.forEach((b) => (b.hidden = false));
+}
+
+/* Fills the hint card with directions for whichever browser this is, since
+   only Chromium lets us do the install ourselves. */
+function showInstallHint(hint) {
+  if (!hint) return;
+
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua) ||
+    (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const isAndroid = /android/i.test(ua);
+  const isFirefox = /firefox|fxios/i.test(ua);
+
+  let title = "Install this app";
+  let body =
+    "Open your browser's menu and choose Install app or Add to Home Screen.";
+
+  if (isIOS) {
+    title = "Add to Home Screen";
+    body = "Tap the Share button in Safari, then Add to Home Screen.";
+  } else if (isFirefox) {
+    title = "Add to Home Screen";
+    body = isAndroid
+      ? "Tap the ⋮ menu, then Install or Add to Home Screen."
+      : "Firefox on the desktop can't install web apps. Open this page in " +
+        "Chrome or Edge to install it.";
+  } else if (isAndroid) {
+    title = "Add to Home Screen";
+    body = "Tap the ⋮ menu, then Install app.";
+  } else {
+    body =
+      "Click the install icon at the right end of the address bar, or open " +
+      "the ⋮ menu and choose Install.";
+  }
+
+  const t = document.getElementById("installHintTitle");
+  const b = document.getElementById("installHintBody");
+  if (t) t.textContent = title;
+  if (b) b.textContent = body;
+  hint.hidden = false;
 }
 
 /* Registered here so both the form and the job board are installable and

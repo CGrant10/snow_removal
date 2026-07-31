@@ -295,10 +295,11 @@
   </div>
 </div>
 
-<!-- iOS has no install prompt; the Install button reveals this instead -->
+<!-- Shown when the browser gives us no install prompt of our own; the
+     wording is filled in per browser by wireInstall(). -->
 <div class="iosHint" id="iosHint" hidden>
-  <p><strong>Add to Home Screen</strong></p>
-  <p>Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
+  <p><strong id="installHintTitle">Add to Home Screen</strong></p>
+  <p id="installHintBody">Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
   <button class="btn ghost sm" id="iosHintClose">Got it</button>
 </div>
 

@@ -57,7 +57,7 @@
 
     <p class="err" id="gateErr" hidden></p>
     <button class="btn primary wide" id="gateBtn">Open the board</button>
-    <button class="btn ghost wide" id="installBtn" hidden>
+    <button class="btn ghost wide" id="installBtn" data-install-always>
       <svg class="dl" aria-hidden="true"><use href="#i-install"></use></svg>
       Install this app
     </button>
@@ -116,10 +116,11 @@
 
 <button class="updatePill" id="updatePill" hidden>Update available — tap to install</button>
 
-<!-- iOS has no install prompt; the Install button reveals this instead -->
+<!-- Shown when the browser gives us no install prompt of our own; the
+     wording is filled in per browser by wireInstall(). -->
 <div class="iosHint" id="iosHint" hidden>
-  <p><strong>Add to Home Screen</strong></p>
-  <p>Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
+  <p><strong id="installHintTitle">Add to Home Screen</strong></p>
+  <p id="installHintBody">Tap the Share button in Safari, then <em>Add to Home Screen</em>.</p>
   <button class="btn ghost sm" id="iosHintClose">Got it</button>
 </div>
 
