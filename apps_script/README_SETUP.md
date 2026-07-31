@@ -248,3 +248,32 @@ Consumer Gmail accounts can send about 100 emails a day from Apps Script
 (Workspace accounts get more). Each reservation uses one, plus one more if
 you enabled the text. That's a lot of driveways — but if he ever hits it,
 the row still lands in the Sheet; only the notification is dropped.
+
+## When it feels slow
+
+Run **`diagnose()`** from the Apps Script editor (function dropdown →
+Run) and read the timings it prints. It times each piece a real request
+is built from — opening the spreadsheet, reading each tab, hashing,
+taking the lock — so a slow board points at a specific line instead of a
+hunch.
+
+Two things are worth knowing before you chase anything:
+
+**Cold start is not your fault.** Apps Script unloads a script that
+hasn't run in a while and spins it back up on the next request. That's a
+second or two before your code runs at all, every time, and there is
+nothing in this project that can avoid it. The *second* request in a row
+is the honest measure of how fast things are.
+
+**A request only pays for what it touches.** Reads (`settings`,
+`authSalt`, `session`, `list`, `listAdmins`) skip the script lock
+entirely, so the board polling can't queue behind a customer submitting
+the form. The `settings` answer is cached for 30 seconds and both apps
+share that cache; publishing an alert clears it, so you still see your
+own change straight away. "Last seen" on an account is written at most
+once every ten minutes rather than on every request, because a
+spreadsheet write is the most expensive thing in the script.
+
+If `diagnose()` shows **read all reservations** climbing, that's the one
+that grows with the season — a few thousand rows is fine, but it is the
+first thing that will need paging.

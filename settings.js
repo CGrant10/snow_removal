@@ -171,9 +171,19 @@ function applyCachedSettings() {
  * Resolves to false when there's nothing to do — offline, no backend
  * configured, or nothing changed since the cached copy.
  */
+let lastRefresh = 0;
+
+/** Skips the round trip if we just made one. Focus fires a lot — every
+    app switch on a phone — and an alert doesn't need checking that often. */
+async function refreshSettingsThrottled(minGapMs = 60_000) {
+  if (Date.now() - lastRefresh < minGapMs) return false;
+  return refreshSettings();
+}
+
 async function refreshSettings() {
   const url = settingsUrl();
   if (!url) return false;
+  lastRefresh = Date.now();
 
   let data;
   try {

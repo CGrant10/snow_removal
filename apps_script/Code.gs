@@ -181,8 +181,53 @@ function settingsSheet_() {
   return sh;
 }
 
+/**
+ * What the `settings` action returns, cached across requests.
+ *
+ * Both apps ask for this on every load and again whenever the window
+ * regains focus, and the answer changes maybe twice a season. 30 seconds
+ * is short enough that publishing an alert still feels immediate — and a
+ * write clears the cache anyway, so the board never sees its own save go
+ * missing.
+ */
+function settingsPayload_() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('settings');
+  if (hit) {
+    try { return JSON.parse(hit); } catch (err) { /* rewrite it below */ }
+  }
+
+  var s = readSettings_();
+  var payload = {
+    ok: true,
+    settings: publicSettings_(s),
+    alert: activeAlert_(s),
+  };
+
+  // An alert expiring sooner than the cache would outlive its own window,
+  // so shorten the cache to match.
+  var ttl = 30;
+  if (payload.alert && payload.alert.until) {
+    var left = Math.floor(
+        (new Date(payload.alert.until).getTime() - Date.now()) / 1000);
+    if (left > 0 && left < ttl) ttl = left;
+  }
+
+  try { cache.put('settings', JSON.stringify(payload), ttl); } catch (err) {}
+  return payload;
+}
+
+function dropSettingsCache_() {
+  try { CacheService.getScriptCache().remove('settings'); } catch (err) {}
+  forget_('settings');
+}
+
 /** Every stored key as a flat map of strings. */
 function readSettings_() {
+  return memo_('settings', loadSettings_);
+}
+
+function loadSettings_() {
   var values = settingsSheet_().getDataRange().getValues();
   var out = {};
   for (var i = 1; i < values.length; i++) {
@@ -214,6 +259,9 @@ function writeSettings_(patch) {
       return [k, merged[k]];
     }));
   }
+
+  dropSettingsCache_();
+  MEMO_['settings'] = merged;      // this request already knows the answer
   return merged;
 }
 
@@ -275,32 +323,47 @@ function doGet() {
  *     listAdmins / createAdmin / deleteAdmin
  *     setAdminActive / resetAdminPassword
  */
+/** Actions that only read. These skip the lock — see doPost. */
+var READ_ONLY = [
+  'settings', 'authSalt', 'session', 'list', 'listAdmins',
+];
+
 function doPost(e) {
-  // One writer at a time, so two people submitting at once cannot land on
-  // the same row.
-  var lock = LockService.getScriptLock();
+  MEMO_ = {};                  // nothing carries over between requests
+
+  if (!e || !e.postData || !e.postData.contents) {
+    return json({ ok: false, error: 'empty body' });
+  }
+
+  var p;
   try {
-    lock.waitLock(20000);
+    p = JSON.parse(e.postData.contents);
   } catch (err) {
-    return json({ ok: false, error: 'busy, try again' });
+    return json({ ok: false, error: 'bad body' });
+  }
+
+  // The lock exists so two customers submitting at once can't land on the
+  // same row. It used to wrap every request, which meant the board's
+  // polling queued behind a form submission and vice versa — with a
+  // 20-second wait, that alone could account for a page that "just
+  // loads". Reads don't need it.
+  var lock = null;
+  if (READ_ONLY.indexOf(p.action) === -1) {
+    lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (err) {
+      return json({ ok: false, error: 'busy, try again' });
+    }
   }
 
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return json({ ok: false, error: 'empty body' });
-    }
-
-    var p = JSON.parse(e.postData.contents);
-
     // ---- anonymous: both apps reading settings + the current alert ----
-    if (p.action === 'settings') {
-      var s = readSettings_();
-      return json({
-        ok: true,
-        settings: publicSettings_(s),
-        alert: activeAlert_(s),
-      });
-    }
+    // Hit on every page load of both apps and again on window focus, so
+    // it's served from a short cache rather than reading the Sheet each
+    // time. Writes drop the cache, so the board still sees its own save
+    // immediately.
+    if (p.action === 'settings') return json(settingsPayload_());
 
     // ---- signing in: the only admin actions without a token ----
     if (p.action === 'authSalt') return handleAuthSalt(p);
@@ -374,7 +437,7 @@ function doPost(e) {
     console.error(err);
     return json({ ok: false, error: String(err) });
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -470,7 +533,26 @@ var ADMIN_COLUMNS = [
 ];
 var SESSION_COLUMNS = ['Token hash', 'Username', 'Created', 'Expires'];
 
+/* ---------------------------------------------------------- per-request
+   Everything below is re-read constantly within a single request —
+   ensureMaster_ and findAdmin_ alone used to pull the Admins tab twice
+   before doing any work. Each getSheetByName/getDataRange is a call out
+   to the Sheets service, and they add up to whole seconds. This holds
+   them for the life of one request and nothing longer.               */
+var MEMO_ = {};
+
+function memo_(key, make) {
+  if (!(key in MEMO_)) MEMO_[key] = make();
+  return MEMO_[key];
+}
+
+function forget_(key) { delete MEMO_[key]; }
+
 function tab_(name, columns, widths) {
+  return memo_('tab:' + name, function () { return makeTab_(name, columns, widths); });
+}
+
+function makeTab_(name, columns, widths) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(name);
   if (!sh) {
@@ -560,6 +642,10 @@ function safeEqual_(a, b) {
 /* ---------------------------------------------------------- storage */
 
 function readAdmins_() {
+  return memo_('admins', loadAdmins_);
+}
+
+function loadAdmins_() {
   var values = adminsSheet_().getDataRange().getValues();
   var out = [];
   for (var i = 1; i < values.length; i++) {
@@ -605,6 +691,7 @@ function writeAdmin_(a) {
     a.failed || 0,
     a.lockedUntil ? new Date(a.lockedUntil) : '',
   ]]);
+  forget_('admins');
 }
 
 /** A row with no salt/hash yet: it can only be signed into with
@@ -620,6 +707,7 @@ function appendAdmin_(username, role, secret) {
     'yes',                       // every new account changes its password
     'yes', new Date(), '', 0, '',
   ]);
+  forget_('admins');
 }
 
 /** Validate and store a browser-derived credential. */
@@ -676,8 +764,12 @@ function createSession_(username, remember) {
   var expires = new Date(
       Date.now() + SETTINGS.SESSION_DAYS * 24 * 3600 * 1000);
 
-  purgeSessions_();
-  sessionsSheet_().appendRow([sha256_(token), username, new Date(), expires]);
+  // Sweeping expired rows is housekeeping, not something a person should
+  // wait for. Only bother once the tab has actually grown.
+  var sh = sessionsSheet_();
+  if (sh.getLastRow() > 40) purgeSessions_();
+
+  sh.appendRow([sha256_(token), username, new Date(), expires]);
 
   // `remember` only decides whether the BROWSER keeps the token past the
   // tab closing. The server-side lifetime is the same either way.
@@ -743,8 +835,15 @@ function authFromToken_(token) {
     var admin = findAdmin_(values[i][1]);
     if (!admin || !admin.active) return null;
 
-    admin.lastSeen = new Date();
-    writeAdmin_(admin);
+    // "Last seen" used to be written on every single request. A
+    // spreadsheet write is the most expensive thing in here and it was
+    // buying a timestamp nobody reads to the minute, so it's throttled
+    // to once every ten minutes.
+    var seen = admin.lastSeen ? new Date(admin.lastSeen).getTime() : 0;
+    if (Date.now() - seen > 10 * 60000) {
+      admin.lastSeen = new Date();
+      writeAdmin_(admin);
+    }
     return admin;
   }
   return null;
@@ -930,6 +1029,7 @@ function handleDeleteAdmin(p, me) {
   }
 
   adminsSheet_().deleteRow(admin.row);
+  forget_('admins');
   deleteSessionsFor_(admin.username, null);   // kick their devices too
   return handleListAdmins();
 }
@@ -1048,6 +1148,89 @@ function handleClearAlert() {
     'alert.until': '',
   });
   return json({ ok: true, alert: null });
+}
+
+/* ============================== DIAGNOSE ==============================
+   Run this from the Apps Script editor (pick `diagnose` in the function
+   dropdown, then Run) and read the timings in the execution log.
+
+   It times the operations a real request is built out of, so a slow
+   board can be traced to a specific call instead of guessed at. Nothing
+   here writes anything.
+   ====================================================================== */
+
+function diagnose() {
+  MEMO_ = {};
+  var lines = [];
+
+  function time(label, fn) {
+    var t0 = new Date().getTime();
+    var extra = '';
+    try {
+      extra = fn() || '';
+    } catch (err) {
+      extra = 'FAILED: ' + err;
+    }
+    var ms = new Date().getTime() - t0;
+    lines.push(pad_(label, 34) + pad_(ms + ' ms', 10) + extra);
+    return ms;
+  }
+
+  time('open spreadsheet', function () {
+    return SpreadsheetApp.getActiveSpreadsheet().getName();
+  });
+  time('Reservations tab', function () {
+    var sh = SpreadsheetApp.getActiveSpreadsheet()
+                           .getSheetByName(SETTINGS.SHEET_NAME);
+    return sh ? sh.getLastRow() - 1 + ' rows' : 'MISSING — run setup()';
+  });
+  time('read all reservations', function () {
+    var sh = SpreadsheetApp.getActiveSpreadsheet()
+                           .getSheetByName(SETTINGS.SHEET_NAME);
+    return sh ? sh.getDataRange().getValues().length + ' rows' : 'skipped';
+  });
+  time('read Settings tab', function () {
+    return Object.keys(loadSettings_()).length + ' keys';
+  });
+  time('read Admins tab', function () {
+    return loadAdmins_().length + ' accounts';
+  });
+  time('read Sessions tab', function () {
+    return sessionsSheet_().getLastRow() - 1 + ' live sessions';
+  });
+  time('one SHA-256 (proofHash_)', function () {
+    return proofHash_('benchmark').slice(0, 12) + '…';
+  });
+  time('100 x HMAC-SHA256', function () {
+    for (var i = 0; i < 100; i++) {
+      Utilities.computeHmacSha256Signature('x', 'y');
+    }
+    return 'this is why stretching is done in the browser';
+  });
+  time('settings payload (cached)', function () {
+    return settingsPayload_().ok ? 'ok' : 'failed';
+  });
+  time('take + release the lock', function () {
+    var l = LockService.getScriptLock();
+    if (!l.tryLock(5000)) return 'BUSY — something else is holding it';
+    l.releaseLock();
+    return 'free';
+  });
+
+  var report = lines.join('\n');
+  console.log('\n' + report);
+  try {
+    SpreadsheetApp.getUi().alert('Timings\n\n' + report);
+  } catch (err) {
+    /* no UI when run headless — the log has it */
+  }
+  return report;
+}
+
+function pad_(s, n) {
+  s = String(s);
+  while (s.length < n) s += ' ';
+  return s;
 }
 
 /* ============================== HELPERS =============================== */

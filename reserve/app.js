@@ -85,8 +85,9 @@ function boot() {
   });
 
   // Coming back to a left-open tab is exactly when a storm notice matters.
+  // Throttled, because focus fires on every app switch.
   window.addEventListener("focus", () => {
-    refreshSettings().then(() => renderAlert($("alertBar")));
+    refreshSettingsThrottled().then(() => renderAlert($("alertBar")));
   });
 }
 
