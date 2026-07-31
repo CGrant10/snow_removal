@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.6.2";
+const APP_VERSION = "1.6.3";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -62,6 +62,16 @@ async function forceUpdate(target) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
     }
+
+    // Emptying our own cache is only half of it. The worker's network-first
+    // fetch still goes through the BROWSER's HTTP cache, and GitHub Pages
+    // sends max-age=600 — so the reload happily served ten-minute-old JS and
+    // the update pill came straight back. cache:"reload" bypasses that cache
+    // and overwrites the entry, so the reload sees the real files.
+    await Promise.allSettled(
+      BUST.map((u) => fetch(u, { cache: "reload" }).catch(() => null))
+    );
+
     if ("serviceWorker" in navigator) {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg) { try { await reg.update(); } catch {} }
@@ -71,6 +81,21 @@ async function forceUpdate(target) {
   }
   window.location.replace(window.location.pathname + "?v=" + Date.now());
 }
+
+/* Everything the two pages are built from. Refetched past the HTTP cache
+   on update; a 404 on any one of them is ignored. */
+const BUST = [
+  "./",
+  "index.html",
+  "admin.html",
+  "styles.css",
+  "app.js",
+  "admin.js",
+  "config.js",
+  "updater.js",
+  "manifest.json",
+  "admin.webmanifest",
+];
 
 /* ------------------------------------------------------------ toast */
 function toast(message, ms = 2400) {
@@ -131,7 +156,13 @@ function wireUpdater(buttons, pill) {
     if (target !== null) {
       sessionStorage.removeItem(DONE_KEY);
       // Only claim success if we really are on the version we aimed for.
-      if (!target || target === APP_VERSION) toast(`Updated to v${APP_VERSION}`);
+      // Say so when we aren't, rather than leaving a pill that never clears
+      // and no explanation for why tapping it keeps doing nothing.
+      if (!target || target === APP_VERSION) {
+        toast(`Updated to v${APP_VERSION}`);
+      } else {
+        toast(`Still on v${APP_VERSION} — close the app and reopen it`, 5000);
+      }
     }
   } catch {}
 

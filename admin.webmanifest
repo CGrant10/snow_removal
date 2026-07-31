@@ -2,7 +2,7 @@
   "name": "Snow Removal Job Board",
   "short_name": "Job Board",
   "description": "Staff view of incoming snow removal reservations.",
-  "id": "/admin",
+  "id": "admin",
   "start_url": "admin.html",
   "scope": ".",
   "display": "standalone",
