@@ -34,12 +34,12 @@ window.SNOW_CONFIG = {
                      Zapier/Make hook, a Twilio proxy...).
   --------------------------------------------------------- */
   delivery: {
-    mode: "console",
+    mode: "gsheet",
 
     gsheet: {
       /* The /exec URL Apps Script gives you when you deploy the web app.
          Must start with https://script.google.com/ */
-      url: "PASTE-YOUR-APPS-SCRIPT-EXEC-URL",
+      url: "https://script.google.com/macros/s/AKfycbzuTzgjuEgDPmWh2bz3aAHAOAGGZhzxyJMOHyokKxcNIChMCYA2o8ILsFyhF8FB-vIhyQ/exec",
       /* Optional. If set, must match SHARED_SECRET in Code.gs. Sent in the
          body, not a header — a custom header would trip CORS preflight.
          It is visible to anyone who reads the page source, so treat it as
