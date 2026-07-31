@@ -6,6 +6,16 @@
 <title>Job board</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#10233f">
+
+<!-- Its own manifest, not the customer form's. Without one Android only
+     drops a shortcut on the home screen instead of installing an app, and
+     pointing at manifest.json would install the app that opens the
+     reservation form. This one starts on the board. -->
+<link rel="manifest" href="admin.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Job Board">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="styles.css">
