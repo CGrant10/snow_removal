@@ -39,7 +39,7 @@ window.SNOW_CONFIG = {
     gsheet: {
       /* The /exec URL Apps Script gives you when you deploy the web app.
          Must start with https://script.google.com/ */
-      url: "https://script.google.com/macros/s/AKfycbzuTzgjuEgDPmWh2bz3aAHAOAGGZhzxyJMOHyokKxcNIChMCYA2o8ILsFyhF8FB-vIhyQ/exec",
+      url: "https://script.google.com/macros/s/AKfycbyTis-l--wOEeYsUwAOqqWaIpcETOafYV08Coi_53ewizi1G8Lq2Yy79KgXKS_jB9gG/exec",
       /* Optional. If set, must match SHARED_SECRET in Code.gs. Sent in the
          body, not a header — a custom header would trip CORS preflight.
          It is visible to anyone who reads the page source, so treat it as
