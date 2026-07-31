@@ -88,6 +88,11 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;  /* stop rotation from resizing text */
   text-size-adjust: 100%;
+
+  /* Panning yes, pinching no. The layout is already a fixed shell sized
+     to the viewport, so a pinch can only leave the page zoomed into a
+     corner with the header half off-screen and no obvious way back. */
+  touch-action: pan-x pan-y;
 }
 
 body {

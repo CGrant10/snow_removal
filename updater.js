@@ -17,7 +17,7 @@
    "update available" pill the instant an update succeeded.
    ============================================================ */
 
-const APP_VERSION = "1.7.0";
+const APP_VERSION = "1.7.1";
 
 /* Survives the reload so we can confirm on the other side. */
 const DONE_KEY = "snow.updatedTo";
@@ -342,3 +342,19 @@ function registerServiceWorker() {
       .catch((err) => console.warn("service worker registration failed", err));
   });
 }
+
+/* ------------------------------------------------------------ zoom
+   `touch-action: pan-x pan-y` and user-scalable=no between them stop
+   pinch-zoom everywhere except iOS Safari, which has ignored the viewport
+   flag since iOS 10 and only respects these non-standard gesture events.
+   Runs on load for both pages.
+
+   Note this leaves desktop zoom (Ctrl +/-, trackpad) alone on purpose —
+   that's the route anyone who needs bigger text will actually use, and
+   killing it buys nothing, since the annoyance is a stray pinch on a
+   phone. */
+(function lockPinchZoom() {
+  ["gesturestart", "gesturechange", "gestureend"].forEach((type) => {
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+  });
+})();

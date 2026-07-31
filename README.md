@@ -93,6 +93,15 @@ against. Consequences:
   it would otherwise trigger swipe-back.
 - Every field is 16px on touch, because iOS zooms into anything smaller on
   focus and never zooms back out.
+- **No pinch-zoom.** The shell is sized to the viewport, so a pinch could
+  only strand you zoomed into a corner with the chrome off-screen. Blocked
+  three ways because no single one covers every browser: `user-scalable=no`
+  in the viewport tag, `touch-action: pan-x pan-y` on `html, body` (which
+  composes down the whole tree, so the inner scrollers still pan), and
+  `preventDefault` on iOS Safari's `gesture*` events, since Safari has
+  ignored the viewport flag since iOS 10. Desktop zoom is untouched on
+  purpose — Ctrl +/- is what anyone who needs larger text actually reaches
+  for.
 
 ### Device coverage
 
